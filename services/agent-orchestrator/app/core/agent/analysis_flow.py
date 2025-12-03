@@ -30,12 +30,14 @@ class AnalysisFlow(BaseAgentFlow):
             holdings = holdings_data.get("holdings", [])
             
             if not holdings:
-                await self._update_run_status("completed", {
+                output = {
                     "explanation": "No holdings found for analysis",
                     "metrics": [],
-                    "sources": []
-                })
-                return self.agent_run.output_json
+                    "sources": [],
+                    "status": "completed"
+                }
+                await self._update_run_status("completed", output)
+                return output
             
             # Step 2: Get current prices for all instruments
             price_data = {}
@@ -118,10 +120,25 @@ class AnalysisFlow(BaseAgentFlow):
             )
             
             # Step 7: Build response
+            # Serialize Pydantic models properly
+            metrics_data = []
+            for m in structured_metrics:
+                if hasattr(m, 'model_dump'):
+                    metrics_data.append(m.model_dump())
+                else:
+                    metrics_data.append(m.dict())
+            
+            sources_data = []
+            for s in self.sources:
+                if hasattr(s, 'model_dump'):
+                    sources_data.append(s.model_dump())
+                else:
+                    sources_data.append(s.dict())
+            
             output = {
                 "explanation": explanation,
-                "metrics": [m.dict() for m in structured_metrics],
-                "sources": [s.dict() for s in self.sources],
+                "metrics": metrics_data,
+                "sources": sources_data,
                 "status": "completed"
             }
             

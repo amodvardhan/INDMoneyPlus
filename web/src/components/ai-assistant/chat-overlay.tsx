@@ -2,13 +2,13 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Send, Bot, User } from 'lucide-react'
+import { X, Send, Bot, User, Sparkles, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Card } from '@/components/ui/card'
 import { useAnalyzePortfolio } from '@/hooks/useAgent'
 import { useAuth } from '@/hooks/useAuth'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 
 interface Message {
   id: string
@@ -28,13 +28,14 @@ export function ChatOverlay({ isOpen, onClose }: ChatOverlayProps) {
     {
       id: '1',
       role: 'assistant',
-      content: 'Hello! I can help you analyze your portfolio, answer questions, and provide insights. How can I assist you today?',
+      content: 'Hello! 👋 I\'m your AI portfolio assistant. I can help you analyze your portfolio, answer questions, and provide insights. How can I assist you today?',
       timestamp: new Date(),
     },
   ])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
   const analyzeMutation = useAnalyzePortfolio()
 
   useEffect(() => {
@@ -43,8 +44,14 @@ export function ChatOverlay({ isOpen, onClose }: ChatOverlayProps) {
     }
   }, [messages])
 
+  useEffect(() => {
+    if (isOpen && inputRef.current) {
+      inputRef.current.focus()
+    }
+  }, [isOpen])
+
   const handleSend = async () => {
-    if (!input.trim() || !user) return
+    if (!input.trim() || !user || isLoading) return
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -54,11 +61,12 @@ export function ChatOverlay({ isOpen, onClose }: ChatOverlayProps) {
     }
 
     setMessages((prev) => [...prev, userMessage])
+    const currentInput = input
     setInput('')
     setIsLoading(true)
 
     // Check if user wants portfolio analysis
-    if (input.toLowerCase().includes('analyze') || input.toLowerCase().includes('portfolio')) {
+    if (currentInput.toLowerCase().includes('analyze') || currentInput.toLowerCase().includes('portfolio')) {
       try {
         const result = await analyzeMutation.mutateAsync({
           user_id: user.id,
@@ -68,9 +76,9 @@ export function ChatOverlay({ isOpen, onClose }: ChatOverlayProps) {
         const assistantMessage: Message = {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: `Analysis complete!\n\n${result.explanation}\n\nKey Metrics:\n${Object.entries(result.metrics)
-            .map(([key, value]) => `- ${key}: ${value}`)
-            .join('\n')}\n\nSources: ${result.sources.join(', ')}`,
+          content: `✅ Analysis complete!\n\n${result.explanation}\n\n📊 Key Metrics:\n${Object.entries(result.metrics)
+            .map(([key, value]) => `• ${key}: ${value}`)
+            .join('\n')}\n\n📚 Sources: ${result.sources.join(', ')}`,
           timestamp: new Date(),
         }
 
@@ -79,7 +87,7 @@ export function ChatOverlay({ isOpen, onClose }: ChatOverlayProps) {
         const errorMessage: Message = {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: 'I apologize, but I encountered an error while analyzing your portfolio. Please try again later.',
+          content: '❌ I apologize, but I encountered an error while analyzing your portfolio. Please try again later.',
           timestamp: new Date(),
         }
         setMessages((prev) => [...prev, errorMessage])
@@ -89,7 +97,7 @@ export function ChatOverlay({ isOpen, onClose }: ChatOverlayProps) {
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: `I understand you're asking about "${input}". For detailed portfolio analysis, please ask me to "analyze my portfolio" or "analyze portfolio". I can also help with rebalancing suggestions and market insights.`,
+        content: `I understand you're asking about "${currentInput}". For detailed portfolio analysis, try asking me to "analyze my portfolio" or "analyze portfolio". I can also help with:\n\n• Rebalancing suggestions\n• Market insights\n• Investment recommendations\n• Risk analysis`,
         timestamp: new Date(),
       }
       setMessages((prev) => [...prev, assistantMessage])
@@ -106,100 +114,158 @@ export function ChatOverlay({ isOpen, onClose }: ChatOverlayProps) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-end justify-end p-4 pointer-events-none"
+        onClick={onClose}
+        className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm pointer-events-auto"
+      />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.9, y: 20 }}
+        transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+        onClick={(e) => e.stopPropagation()}
+        className="fixed bottom-6 right-6 z-50 w-full max-w-md h-[700px] pointer-events-auto"
       >
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="w-full max-w-md h-[600px] pointer-events-auto"
-        >
-          <Card className="flex flex-col h-full shadow-2xl">
-            {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b">
-              <div className="flex items-center gap-2">
-                <Bot className="h-5 w-5 text-primary-600" />
-                <h3 className="font-semibold">AI Assistant</h3>
+        <div className="flex flex-col h-full bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border-2 border-gray-200 dark:border-gray-800 overflow-hidden">
+          {/* Header */}
+          <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-800 bg-gradient-to-r from-primary-50 to-primary-100/50 dark:from-primary-950/50 dark:to-primary-900/30">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <div className="absolute inset-0 bg-primary-500 rounded-full blur-md opacity-50" />
+                <div className="relative bg-gradient-to-br from-primary-600 to-primary-700 p-2.5 rounded-full shadow-lg">
+                  <Sparkles className="h-5 w-5 text-white" />
+                </div>
               </div>
-              <Button variant="ghost" size="icon" onClick={onClose}>
-                <X className="h-4 w-4" />
+              <div>
+                <h3 className="font-bold text-lg text-gray-900 dark:text-white">AI Assistant</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Portfolio insights & analysis</p>
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              className="hover:bg-gray-200 dark:hover:bg-gray-800 rounded-full"
+            >
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
+
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-gradient-to-b from-white to-gray-50/50 dark:from-gray-900 dark:to-gray-950/50">
+            {messages.map((message, index) => (
+              <motion.div
+                key={message.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                className={cn(
+                  'flex gap-3',
+                  message.role === 'user' ? 'justify-end' : 'justify-start'
+                )}
+              >
+                {message.role === 'assistant' && (
+                  <div className="flex-shrink-0">
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-md">
+                      <Bot className="h-5 w-5 text-white" />
+                    </div>
+                  </div>
+                )}
+                <div
+                  className={cn(
+                    'max-w-[80%] rounded-2xl px-4 py-3 shadow-sm',
+                    message.role === 'user'
+                      ? 'bg-gradient-to-br from-primary-600 to-primary-700 text-white rounded-br-sm'
+                      : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 rounded-bl-sm'
+                  )}
+                >
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                  <p className={cn(
+                    'text-xs mt-2',
+                    message.role === 'user' ? 'text-primary-100' : 'text-gray-400'
+                  )}>
+                    {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+                {message.role === 'user' && (
+                  <div className="flex-shrink-0">
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-gray-400 to-gray-500 flex items-center justify-center shadow-md">
+                      <User className="h-5 w-5 text-white" />
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            ))}
+            {isLoading && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex gap-3"
+              >
+                <div className="flex-shrink-0">
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center shadow-md">
+                    <Bot className="h-5 w-5 text-white" />
+                  </div>
+                </div>
+                <div className="bg-white dark:bg-gray-800 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm border border-gray-200 dark:border-gray-700">
+                  <div className="flex gap-1.5">
+                    <motion.div
+                      className="w-2 h-2 bg-primary-500 rounded-full"
+                      animate={{ y: [0, -8, 0] }}
+                      transition={{ duration: 0.6, repeat: Infinity, delay: 0 }}
+                    />
+                    <motion.div
+                      className="w-2 h-2 bg-primary-500 rounded-full"
+                      animate={{ y: [0, -8, 0] }}
+                      transition={{ duration: 0.6, repeat: Infinity, delay: 0.2 }}
+                    />
+                    <motion.div
+                      className="w-2 h-2 bg-primary-500 rounded-full"
+                      animate={{ y: [0, -8, 0] }}
+                      transition={{ duration: 0.6, repeat: Infinity, delay: 0.4 }}
+                    />
+                  </div>
+                </div>
+              </motion.div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Input */}
+          <div className="p-4 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+            <div className="flex gap-2">
+              <Input
+                ref={inputRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    handleSend()
+                  }
+                }}
+                placeholder="Ask me anything about your portfolio..."
+                disabled={isLoading}
+                className="flex-1 h-12 border-2 focus:border-primary-500 rounded-xl"
+              />
+              <Button
+                onClick={handleSend}
+                disabled={isLoading || !input.trim()}
+                className="h-12 px-4 rounded-xl shadow-md hover:shadow-lg transition-all"
+                size="lg"
+              >
+                {isLoading ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Send className="h-5 w-5" />
+                )}
               </Button>
             </div>
-
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex gap-3 ${
-                    message.role === 'user' ? 'justify-end' : 'justify-start'
-                  }`}
-                >
-                  {message.role === 'assistant' && (
-                    <div className="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center flex-shrink-0">
-                      <Bot className="h-4 w-4 text-primary-600" />
-                    </div>
-                  )}
-                  <div
-                    className={`max-w-[80%] rounded-lg p-3 ${
-                      message.role === 'user'
-                        ? 'bg-primary-600 text-white'
-                        : 'bg-gray-100 dark:bg-gray-800'
-                    }`}
-                  >
-                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                    <p className="text-xs opacity-70 mt-1">
-                      {message.timestamp.toLocaleTimeString()}
-                    </p>
-                  </div>
-                  {message.role === 'user' && (
-                    <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center flex-shrink-0">
-                      <User className="h-4 w-4" />
-                    </div>
-                  )}
-                </div>
-              ))}
-              {isLoading && (
-                <div className="flex gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
-                    <Bot className="h-4 w-4 text-primary-600" />
-                  </div>
-                  <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3">
-                    <div className="flex gap-1">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
-                    </div>
-                  </div>
-                </div>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Input */}
-            <div className="p-4 border-t">
-              <div className="flex gap-2">
-                <Input
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault()
-                      handleSend()
-                    }
-                  }}
-                  placeholder="Ask me anything about your portfolio..."
-                  disabled={isLoading}
-                />
-                <Button onClick={handleSend} disabled={isLoading || !input.trim()}>
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </Card>
-        </motion.div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
+              Try: "Analyze my portfolio" or "What's my risk exposure?"
+            </p>
+          </div>
+        </div>
       </motion.div>
     </AnimatePresence>
   )
 }
-

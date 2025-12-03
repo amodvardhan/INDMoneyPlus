@@ -42,6 +42,15 @@ async def analyze_portfolio(
         flow = AnalysisFlow(db, agent_run)
         result = await flow.execute(request.portfolio_id, request.user_id)
         
+        # Ensure all required keys are present
+        if not isinstance(result, dict):
+            raise ValueError(f"Expected dict result, got {type(result)}")
+        
+        required_keys = ["explanation", "metrics", "sources", "status"]
+        missing_keys = [key for key in required_keys if key not in result]
+        if missing_keys:
+            raise ValueError(f"Result missing required keys: {missing_keys}")
+        
         return AnalysisResponse(
             agent_run_id=agent_run.id,
             explanation=result["explanation"],
@@ -50,7 +59,17 @@ async def analyze_portfolio(
             status=result["status"]
         )
     except Exception as e:
-        await db.refresh(agent_run)
+        # Rollback the session if there was a database error
+        try:
+            await db.rollback()
+        except Exception:
+            pass
+        # Try to update agent run status to failed
+        try:
+            agent_run.status = "failed"
+            await db.commit()
+        except Exception:
+            pass
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Analysis failed: {str(e)}"
