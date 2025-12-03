@@ -1,0 +1,52 @@
+name: Code Quality Checks
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+jobs:
+  code-quality:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install black ruff mypy ast
+      
+      - name: Check file sizes
+        run: |
+          python scripts/check_function_size.py
+      
+      - name: Check docstrings
+        run: |
+          python scripts/check_docstrings.py
+      
+      - name: Check for print statements
+        run: |
+          if grep -r "print(" --include="*.py" --exclude-dir=tests --exclude-dir=scripts --exclude-dir=.git services/; then
+            echo "❌ Found print() statements in production code"
+            exit 1
+          fi
+          echo "✅ No print() statements found"
+      
+      - name: Check type annotations
+        run: |
+          python scripts/check_type_annotations.py || true
+      
+      - name: Run Black check
+        run: |
+          black --check --line-length 100 services/
+      
+      - name: Run Ruff
+        run: |
+          ruff check services/
+

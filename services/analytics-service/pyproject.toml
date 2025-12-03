@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "analytics-service"
+version = "0.1.0"
+description = "Portfolio analytics, XIRR calculations, and risk metrics"
+authors = ["Your Team <dev@example.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.104.0"
+uvicorn = {extras = ["standard"], version = "^0.24.0"}
+pydantic = "^2.5.0"
+numpy = "^1.26"
+pandas = "^2.1"
+scipy = "^1.11"
+
+[tool.poetry.dev-dependencies]
+pytest = "^8.4"
+pytest-asyncio = "^0.23.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+

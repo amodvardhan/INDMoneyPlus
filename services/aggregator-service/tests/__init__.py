@@ -1,0 +1,2 @@
+"""Tests for aggregator service"""
+

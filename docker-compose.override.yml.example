@@ -1,0 +1,39 @@
+version: '3.8'
+
+# Example override file for running only selected services
+# Copy this to docker-compose.override.yml and uncomment services you want to run
+# Usage: docker compose -f docker-compose.dev.yml -f docker-compose.override.yml up
+
+services:
+  # Uncomment to run only auth-service and dependencies
+  # auth-service:
+  #   profiles: []
+
+  # Uncomment to run only marketdata-service and dependencies
+  # marketdata-service:
+  #   profiles: []
+
+  # Uncomment to run only web frontend
+  # web:
+  #   profiles: []
+
+  # Comment out services you don't need
+  # analytics-service:
+  #   profiles: ["skip"]
+  # aggregator-service:
+  #   profiles: ["skip"]
+  # agent-orchestrator:
+  #   profiles: ["skip"]
+  # notification-service:
+  #   profiles: ["skip"]
+  # order-orchestrator:
+  #   profiles: ["skip"]
+  # api-gateway:
+  #   profiles: ["skip"]
+  # admin-service:
+  #   profiles: ["skip"]
+  # prometheus:
+  #   profiles: ["skip"]
+  # grafana:
+  #   profiles: ["skip"]
+

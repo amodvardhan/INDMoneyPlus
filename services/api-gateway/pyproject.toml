@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "api-gateway"
+version = "0.1.0"
+description = "API Gateway - Lightweight edge API with authentication"
+authors = ["Your Team <dev@example.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.104.0"
+uvicorn = {extras = ["standard"], version = "^0.24.0"}
+httpx = "^0.25.0"
+pydantic = "^2.5.0"
+pydantic-settings = "^2.1.0"
+python-jose = {extras = ["cryptography"], version = "^3.3.0"}
+
+[tool.poetry.dev-dependencies]
+pytest = "^8.4"
+pytest-asyncio = "^0.23.0"
+httpx = "^0.25.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

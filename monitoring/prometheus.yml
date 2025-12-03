@@ -1,0 +1,57 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'portfolio-superapp-dev'
+    environment: 'development'
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'auth-service'
+    static_configs:
+      - targets: ['auth-service:8080']
+    metrics_path: '/metrics'
+
+  - job_name: 'marketdata-service'
+    static_configs:
+      - targets: ['marketdata-service:8081']
+    metrics_path: '/metrics'
+
+  - job_name: 'analytics-service'
+    static_configs:
+      - targets: ['analytics-service:8082']
+    metrics_path: '/metrics'
+
+  - job_name: 'aggregator-service'
+    static_configs:
+      - targets: ['aggregator-service:8083']
+    metrics_path: '/metrics'
+
+  - job_name: 'agent-orchestrator'
+    static_configs:
+      - targets: ['agent-orchestrator:8084']
+    metrics_path: '/metrics'
+
+  - job_name: 'notification-service'
+    static_configs:
+      - targets: ['notification-service:8085']
+    metrics_path: '/metrics'
+
+  - job_name: 'order-orchestrator'
+    static_configs:
+      - targets: ['order-orchestrator:8086']
+    metrics_path: '/metrics'
+
+  - job_name: 'api-gateway'
+    static_configs:
+      - targets: ['api-gateway:8000']
+    metrics_path: '/metrics'
+
+  - job_name: 'admin-service'
+    static_configs:
+      - targets: ['admin-service:8087']
+    metrics_path: '/metrics'
+

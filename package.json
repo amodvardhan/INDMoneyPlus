@@ -1,0 +1,24 @@
+{
+    "name": "portfolio-superapp",
+    "version": "0.1.0",
+    "private": true,
+    "workspaces": [
+        "services/*",
+        "web"
+    ],
+    "scripts": {
+        "dev:web": "cd web && pnpm dev",
+        "build:web": "cd web && pnpm build",
+        "lint": "pnpm -w eslint .",
+        "test": "pnpm -w test",
+        "start:local": "docker-compose -f docker-compose.dev.yml up --build",
+        "bootstrap": "./scripts/bootstrap-dev.sh"
+    },
+    "devDependencies": {
+        "turbo": "^1.8.0"
+    },
+    "engines": {
+        "node": ">=18.0.0",
+        "pnpm": ">=8.0.0"
+    }
+}

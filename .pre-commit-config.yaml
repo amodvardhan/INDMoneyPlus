@@ -1,0 +1,71 @@
+# Pre-commit hooks configuration
+# See https://pre-commit.com for more information
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+        args: ['--maxkb=400']  # Warn if file > 400 LOC equivalent
+      - id: check-json
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: detect-private-key
+
+  - repo: https://github.com/psf/black
+    rev: 23.12.1
+    hooks:
+      - id: black
+        language_version: python3.11
+        args: ['--line-length=100']
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.9
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.8.0
+    hooks:
+      - id: mypy
+        additional_dependencies: [types-all]
+        args: [--ignore-missing-imports, --no-strict-optional]
+        exclude: ^(tests/|alembic/)
+
+  - repo: local
+    hooks:
+      - id: check-file-size
+        name: Check file size (< 400 LOC)
+        entry: bash -c 'if [ $(wc -l < "$1") -gt 400 ]; then echo "File $1 exceeds 400 LOC"; exit 1; fi'
+        language: system
+        files: \.py$
+        pass_filenames: true
+
+      - id: check-function-size
+        name: Check function size (< 80 LOC)
+        entry: python scripts/check_function_size.py
+        language: system
+        files: \.py$
+
+      - id: check-docstrings
+        name: Check docstrings
+        entry: python scripts/check_docstrings.py
+        language: system
+        files: \.py$
+
+      - id: check-no-prints
+        name: Check no console prints
+        entry: bash -c 'if grep -r "print(" --include="*.py" --exclude-dir=tests --exclude-dir=scripts .; then echo "Found print() statements in production code"; exit 1; fi'
+        language: system
+
+      - id: check-conventional-commits
+        name: Check conventional commits
+        entry: bash -c 'commit_msg=$(cat "$1"); if ! echo "$commit_msg" | grep -qE "^(feat|fix|docs|style|refactor|test|chore)(\(.+\))?:"; then echo "Commit message must follow Conventional Commits format"; exit 1; fi'
+        language: system
+        stages: [commit-msg]
+        require_serial: true
+
