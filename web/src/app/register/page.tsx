@@ -53,16 +53,18 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 via-white to-primary-100 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 px-4">
+    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-md"
       >
-        <Card>
-          <CardHeader className="text-center">
-            <CardTitle className="text-3xl">Create Account</CardTitle>
-            <CardDescription>Sign up to get started</CardDescription>
+        <Card className="border-2 shadow-2xl">
+          <CardHeader className="text-center space-y-2">
+            <CardTitle className="text-4xl font-bold bg-gradient-to-r from-primary-600 to-primary-800 bg-clip-text text-transparent">
+              Create Account
+            </CardTitle>
+            <CardDescription className="text-base">Sign up to get started</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">

@@ -69,15 +69,17 @@ export default function RebalancePage() {
         animate={{ opacity: 1, y: 0 }}
         className="mb-8"
       >
-        <h1 className="text-3xl font-bold mb-2">Rebalance Portfolio</h1>
-        <p className="text-gray-600 dark:text-gray-400">
+        <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
+          Rebalance Portfolio
+        </h1>
+        <p className="text-lg text-gray-600 dark:text-gray-400">
           Generate a rebalancing proposal based on your target allocation
         </p>
       </motion.div>
 
-      <Card className="mb-6">
+      <Card className="mb-6 border-2 shadow-lg">
         <CardHeader>
-          <CardTitle>Current Holdings</CardTitle>
+          <CardTitle className="text-xl">Current Holdings</CardTitle>
         </CardHeader>
         <CardContent>
           {holdings ? (
@@ -108,9 +110,9 @@ export default function RebalancePage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="border-2 shadow-lg">
         <CardHeader>
-          <CardTitle>Target Allocation</CardTitle>
+          <CardTitle className="text-xl">Target Allocation</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4 mb-6">
@@ -127,7 +129,8 @@ export default function RebalancePage() {
           <Button
             onClick={handleRebalance}
             disabled={rebalanceMutation.isPending}
-            className="w-full"
+            className="w-full shadow-lg hover:shadow-xl transition-all"
+            size="lg"
           >
             {rebalanceMutation.isPending
               ? 'Generating proposal...'

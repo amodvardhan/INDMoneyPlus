@@ -69,10 +69,16 @@ export default function DashboardPage() {
         animate={{ opacity: 1, y: 0 }}
         className="mb-8"
       >
-        <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
-        <p className="text-gray-600 dark:text-gray-400">
-          Welcome back, {user?.email}
-        </p>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
+              Dashboard
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400 text-lg">
+              Welcome back, <span className="font-semibold text-gray-900 dark:text-white">{user?.email?.split('@')[0]}</span>
+            </p>
+          </div>
+        </div>
       </motion.div>
 
       {/* Net Worth Card */}
@@ -82,41 +88,45 @@ export default function DashboardPage() {
         transition={{ delay: 0.1 }}
         className="mb-6"
       >
-        <Card>
+        <Card className="border-2 border-primary-100 dark:border-primary-900/50 shadow-xl bg-gradient-to-br from-white to-primary-50/30 dark:from-gray-900 dark:to-primary-950/30">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
-              <span>Net Worth</span>
-              <Button variant="ghost" size="sm" onClick={() => router.push('/portfolio')}>
-                View Portfolio
+              <span className="text-2xl">Net Worth</span>
+              <Button variant="ghost" size="sm" onClick={() => router.push('/portfolio')} className="hover:bg-primary-100 dark:hover:bg-primary-900/30">
+                View Portfolio →
               </Button>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="mb-4">
-              <div className="text-4xl font-bold mb-2">
+            <div className="mb-6">
+              <div className="text-5xl md:text-6xl font-extrabold mb-3 bg-gradient-to-r from-primary-600 to-primary-800 bg-clip-text text-transparent">
                 {holdingsLoading ? (
-                  <Skeleton className="h-10 w-48" />
+                  <Skeleton className="h-16 w-64" />
                 ) : (
                   formatCurrency(totalValue)
                 )}
               </div>
-              <div className="flex items-center gap-2">
-                {todayChange >= 0 ? (
-                  <TrendingUp className="h-5 w-5 text-success-600" />
-                ) : (
-                  <TrendingDown className="h-5 w-5 text-error-600" />
-                )}
-                <span
-                  className={
-                    todayChange >= 0 ? 'text-success-600' : 'text-error-600'
-                  }
-                >
-                  {formatCurrency(Math.abs(todayChange))} ({formatPercentage(todayChangePercent)})
-                </span>
+              <div className="flex items-center gap-3">
+                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${
+                  todayChange >= 0 
+                    ? 'bg-success-100 text-success-700 dark:bg-success-900/30 dark:text-success-400' 
+                    : 'bg-error-100 text-error-700 dark:bg-error-900/30 dark:text-error-400'
+                }`}>
+                  {todayChange >= 0 ? (
+                    <TrendingUp className="h-5 w-5" />
+                  ) : (
+                    <TrendingDown className="h-5 w-5" />
+                  )}
+                  <span className="font-semibold">
+                    {formatCurrency(Math.abs(todayChange))} ({formatPercentage(todayChangePercent)})
+                  </span>
+                </div>
                 <span className="text-gray-500 text-sm">Today</span>
               </div>
             </div>
-            <NetWorthChart data={netWorthData} />
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-4">
+              <NetWorthChart data={netWorthData} />
+            </div>
           </CardContent>
         </Card>
       </motion.div>
@@ -127,21 +137,24 @@ export default function DashboardPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
+          whileHover={{ y: -5 }}
         >
-          <Card>
+          <Card className="border-2 hover:border-primary-200 dark:hover:border-primary-800 hover:shadow-lg transition-all">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Holdings</CardTitle>
-              <DollarSign className="h-4 w-4 text-gray-500" />
+              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Holdings</CardTitle>
+              <div className="p-2 rounded-lg bg-primary-100 dark:bg-primary-900/30">
+                <DollarSign className="h-5 w-5 text-primary-600 dark:text-primary-400" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
+              <div className="text-3xl font-bold mb-1">
                 {holdingsLoading ? (
-                  <Skeleton className="h-8 w-24" />
+                  <Skeleton className="h-9 w-20" />
                 ) : (
                   holdings?.holdings.length || 0
                 )}
               </div>
-              <p className="text-xs text-gray-500">Active positions</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Active positions</p>
             </CardContent>
           </Card>
         </motion.div>
@@ -150,21 +163,24 @@ export default function DashboardPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
+          whileHover={{ y: -5 }}
         >
-          <Card>
+          <Card className="border-2 hover:border-primary-200 dark:hover:border-primary-800 hover:shadow-lg transition-all">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Portfolio Value</CardTitle>
-              <PieChartIcon className="h-4 w-4 text-gray-500" />
+              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">Portfolio Value</CardTitle>
+              <div className="p-2 rounded-lg bg-primary-100 dark:bg-primary-900/30">
+                <PieChartIcon className="h-5 w-5 text-primary-600 dark:text-primary-400" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
+              <div className="text-3xl font-bold mb-1">
                 {holdingsLoading ? (
-                  <Skeleton className="h-8 w-24" />
+                  <Skeleton className="h-9 w-32" />
                 ) : (
                   formatCurrency(totalValue)
                 )}
               </div>
-              <p className="text-xs text-gray-500">Current valuation</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Current valuation</p>
             </CardContent>
           </Card>
         </motion.div>
@@ -173,17 +189,20 @@ export default function DashboardPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
+          whileHover={{ y: -5 }}
         >
-          <Card>
+          <Card className="border-2 hover:border-primary-200 dark:hover:border-primary-800 hover:shadow-lg transition-all">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Today's Change</CardTitle>
-              <TrendingUp className="h-4 w-4 text-gray-500" />
+              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">Today's Change</CardTitle>
+              <div className="p-2 rounded-lg bg-success-100 dark:bg-success-900/30">
+                <TrendingUp className="h-5 w-5 text-success-600 dark:text-success-400" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-success-600">
+              <div className="text-3xl font-bold text-success-600 dark:text-success-400 mb-1">
                 {formatPercentage(todayChangePercent)}
               </div>
-              <p className="text-xs text-gray-500">+{formatCurrency(todayChange)}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">+{formatCurrency(todayChange)}</p>
             </CardContent>
           </Card>
         </motion.div>
@@ -196,12 +215,14 @@ export default function DashboardPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
         >
-          <Card>
+          <Card className="border-2 shadow-lg">
             <CardHeader>
-              <CardTitle>Portfolio Allocation</CardTitle>
+              <CardTitle className="text-xl">Portfolio Allocation</CardTitle>
             </CardHeader>
             <CardContent>
-              <PortfolioChart data={portfolioData} totalValue={totalValue} />
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-4">
+                <PortfolioChart data={portfolioData} totalValue={totalValue} />
+              </div>
             </CardContent>
           </Card>
         </motion.div>

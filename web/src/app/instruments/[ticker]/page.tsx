@@ -81,27 +81,34 @@ export default function InstrumentDetailPage({
         <Button
           variant="ghost"
           onClick={() => router.back()}
-          className="mb-4"
+          className="mb-6 hover:bg-gray-100 dark:hover:bg-gray-800"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Back
+          Back to Portfolio
         </Button>
 
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-3xl font-bold mb-2">{params.ticker}</h1>
-            <div className="flex items-center gap-2">
-              <Badge>{exchange}</Badge>
+            <h1 className="text-4xl md:text-5xl font-bold mb-2 bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
+              {params.ticker}
+            </h1>
+            <div className="flex items-center gap-3">
+              <Badge className="text-sm px-3 py-1">{exchange}</Badge>
               {priceLoading ? (
-                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-32" />
               ) : latestPrice ? (
-                <span className="text-sm text-gray-500">
+                <span className="text-sm text-gray-500 dark:text-gray-400">
                   Last updated: {formatDate(latestPrice.timestamp, 'relative')}
                 </span>
               ) : null}
             </div>
           </div>
-          <Button onClick={handleAnalyze} disabled={analyzeMutation.isPending}>
+          <Button 
+            onClick={handleAnalyze} 
+            disabled={analyzeMutation.isPending}
+            className="shadow-lg hover:shadow-xl transition-all"
+            size="lg"
+          >
             {analyzeMutation.isPending ? 'Analyzing...' : 'AI Analyze'}
           </Button>
         </div>
@@ -114,19 +121,21 @@ export default function InstrumentDetailPage({
         transition={{ delay: 0.1 }}
         className="mb-6"
       >
-        <Card>
+        <Card className="border-2 border-primary-100 dark:border-primary-900/50 shadow-xl bg-gradient-to-br from-white to-primary-50/30 dark:from-gray-900 dark:to-primary-950/30">
           <CardContent className="pt-6">
             {priceLoading ? (
               <Skeleton className="h-32 w-full" />
             ) : latestPrice ? (
               <div>
-                <div className="flex items-baseline gap-4 mb-4">
-                  <div className="text-4xl font-bold">
+                <div className="flex flex-col sm:flex-row items-start sm:items-baseline gap-4 mb-6">
+                  <div className="text-5xl md:text-6xl font-extrabold bg-gradient-to-r from-primary-600 to-primary-800 bg-clip-text text-transparent">
                     {formatCurrency(latestPrice.price)}
                   </div>
                   <div
-                    className={`flex items-center gap-2 ${
-                      priceChange >= 0 ? 'text-success-600' : 'text-error-600'
+                    className={`flex items-center gap-2 px-4 py-2 rounded-full ${
+                      priceChange >= 0 
+                        ? 'bg-success-100 text-success-700 dark:bg-success-900/30 dark:text-success-400' 
+                        : 'bg-error-100 text-error-700 dark:bg-error-900/30 dark:text-error-400'
                     }`}
                   >
                     {priceChange >= 0 ? (
@@ -134,9 +143,8 @@ export default function InstrumentDetailPage({
                     ) : (
                       <TrendingDown className="h-5 w-5" />
                     )}
-                    <span className="text-xl font-semibold">
-                      {formatCurrency(Math.abs(priceChangeAmount))} (
-                      {formatPercentage(priceChange)})
+                    <span className="text-lg font-semibold">
+                      {formatCurrency(Math.abs(priceChangeAmount))} ({formatPercentage(priceChange)})
                     </span>
                   </div>
                 </div>
@@ -178,9 +186,9 @@ export default function InstrumentDetailPage({
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
       >
-        <Card>
+        <Card className="border-2 shadow-lg">
           <CardHeader>
-            <CardTitle>Price History</CardTitle>
+            <CardTitle className="text-xl">Price History</CardTitle>
           </CardHeader>
           <CardContent>
             {timeseriesLoading ? (

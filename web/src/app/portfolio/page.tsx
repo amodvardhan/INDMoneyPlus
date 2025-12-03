@@ -61,29 +61,37 @@ export default function PortfolioPage() {
         animate={{ opacity: 1, y: 0 }}
         className="mb-8"
       >
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-3xl font-bold mb-2">Portfolio</h1>
-            <p className="text-gray-600 dark:text-gray-400">
+            <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
+              Portfolio
+            </h1>
+            <p className="text-lg text-gray-600 dark:text-gray-400">
               {holdingsLoading ? (
-                <Skeleton className="h-4 w-48 inline-block" />
+                <Skeleton className="h-5 w-64 inline-block" />
               ) : (
-                `Total Value: ${formatCurrency(totalValue)}`
+                <>
+                  Total Value: <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(totalValue)}</span>
+                </>
               )}
             </p>
           </div>
-          <Button onClick={() => router.push('/rebalance')}>
+          <Button 
+            onClick={() => router.push('/rebalance')}
+            className="shadow-lg hover:shadow-xl transition-all"
+            size="lg"
+          >
             Rebalance Portfolio
           </Button>
         </div>
 
         <div className="relative mb-6">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
           <Input
-            placeholder="Search holdings..."
+            placeholder="Search holdings by ticker, ISIN, or exchange..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
+            className="pl-12 h-12 text-base border-2 focus:border-primary-500"
           />
         </div>
       </motion.div>
@@ -93,9 +101,9 @@ export default function PortfolioPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
       >
-        <Card>
+        <Card className="border-2 shadow-lg">
           <CardHeader>
-            <CardTitle>Holdings</CardTitle>
+            <CardTitle className="text-xl">Holdings</CardTitle>
           </CardHeader>
           <CardContent>
             {holdingsLoading ? (
@@ -106,21 +114,22 @@ export default function PortfolioPage() {
               </div>
             ) : filteredHoldings.length === 0 ? (
               <div className="text-center py-12">
-                <p className="text-gray-500">No holdings found</p>
+                <p className="text-gray-500 dark:text-gray-400">No holdings found</p>
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Instrument</TableHead>
-                    <TableHead>Exchange</TableHead>
-                    <TableHead className="text-right">Quantity</TableHead>
-                    <TableHead className="text-right">Avg Price</TableHead>
-                    <TableHead className="text-right">Current Value</TableHead>
-                    <TableHead className="text-right">P&L</TableHead>
-                    <TableHead className="text-right">Allocation</TableHead>
-                  </TableRow>
-                </TableHeader>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-b-2">
+                      <TableHead className="font-semibold">Instrument</TableHead>
+                      <TableHead className="font-semibold">Exchange</TableHead>
+                      <TableHead className="text-right font-semibold">Quantity</TableHead>
+                      <TableHead className="text-right font-semibold">Avg Price</TableHead>
+                      <TableHead className="text-right font-semibold">Current Value</TableHead>
+                      <TableHead className="text-right font-semibold">P&L</TableHead>
+                      <TableHead className="text-right font-semibold">Allocation</TableHead>
+                    </TableRow>
+                  </TableHeader>
                 <TableBody>
                   {filteredHoldings.map((holding) => {
                     const currentValue = holding.total_valuation || 0
@@ -186,6 +195,7 @@ export default function PortfolioPage() {
                   })}
                 </TableBody>
               </Table>
+              </div>
             )}
           </CardContent>
         </Card>
