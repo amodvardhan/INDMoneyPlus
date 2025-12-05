@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List
 from app.core.database import get_db
-from app.core.agent import AnalysisFlow, RebalanceFlow, ExecutionPrepFlow
+from app.core.agent import AnalysisFlow, RebalanceFlow, ExecutionPrepFlow, QueryFlow
 from app.models.agent import AgentRun, AgentActionLog
 from app.schemas.agent import (
     AnalysisRequest,
@@ -13,6 +13,8 @@ from app.schemas.agent import (
     RebalanceResponse,
     ExecutionPrepRequest,
     ExecutionPrepResponse,
+    QueryRequest,
+    QueryResponse,
     AgentRunRead,
     AgentActionLogRead,
 )
@@ -225,6 +227,70 @@ async def get_agent_logs(
     logs = result.scalars().all()
     
     return logs
+
+
+@router.post("/query", response_model=QueryResponse)
+async def query_assistant(
+    request: QueryRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """Handle general queries about stocks, portfolio, IPOs, NFOs, and market education"""
+    # Create agent run
+    agent_run = AgentRun(
+        user_id=request.user_id,
+        flow_type="query",
+        input_json={
+            "query": request.query,
+            "context": request.context or {}
+        },
+        status="running"
+    )
+    db.add(agent_run)
+    await db.commit()
+    await db.refresh(agent_run)
+    
+    try:
+        # Execute query flow
+        flow = QueryFlow(db, agent_run)
+        result = await flow.execute(
+            request.query,
+            request.user_id,
+            request.context
+        )
+        
+        # Ensure all required keys are present
+        if not isinstance(result, dict):
+            raise ValueError(f"Expected dict result, got {type(result)}")
+        
+        required_keys = ["answer", "query_type", "sources", "status"]
+        missing_keys = [key for key in required_keys if key not in result]
+        if missing_keys:
+            raise ValueError(f"Result missing required keys: {missing_keys}")
+        
+        return QueryResponse(
+            agent_run_id=agent_run.id,
+            answer=result["answer"],
+            query_type=result["query_type"],
+            sources=result.get("sources", []),
+            suggested_actions=result.get("suggested_actions", []),
+            status=result["status"]
+        )
+    except Exception as e:
+        # Rollback the session if there was a database error
+        try:
+            await db.rollback()
+        except Exception:
+            pass
+        # Try to update agent run status to failed
+        try:
+            agent_run.status = "failed"
+            await db.commit()
+        except Exception:
+            pass
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Query failed: {str(e)}"
+        )
 
 
 @router.get("/{agent_run_id}", response_model=AgentRunRead)

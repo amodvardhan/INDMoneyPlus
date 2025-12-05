@@ -12,6 +12,7 @@ import { formatCurrency } from '@/lib/utils'
 import { AlertTriangle, CheckCircle2 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
+import { TargetAllocationEditor, type TargetAllocation } from '@/components/portfolio/target-allocation-editor'
 
 export default function RebalancePage() {
   const router = useRouter()
@@ -19,7 +20,16 @@ export default function RebalancePage() {
   const { data: holdings } = useHoldings(user?.id || null)
   const rebalanceMutation = useRebalance()
   const [showConfirmModal, setShowConfirmModal] = useState(false)
-  const [targetAllocation, setTargetAllocation] = useState<Record<string, number>>({})
+  const [targetAllocation, setTargetAllocation] = useState<TargetAllocation>({
+    large_cap_equity: 40,
+    mid_cap_equity: 15,
+    small_cap_equity: 10,
+    international_equity: 15,
+    bonds: 15,
+    gold: 3,
+    real_estate: 0,
+    cash: 2,
+  })
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -29,6 +39,15 @@ export default function RebalancePage() {
 
   const handleRebalance = async () => {
     if (!user || !holdings) return
+
+    // Validate allocation sums to 100%
+    const total = Object.values(targetAllocation).reduce((sum, val) => sum + (val || 0), 0)
+    if (Math.abs(total - 100) > 0.01) {
+      toast.error('Invalid allocation', {
+        description: `Total allocation must equal 100%. Current total: ${total.toFixed(1)}%`,
+      })
+      return
+    }
 
     try {
       const result = await rebalanceMutation.mutateAsync({
@@ -117,18 +136,16 @@ export default function RebalancePage() {
         <CardContent>
           <div className="space-y-4 mb-6">
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Set your target allocation percentages. The AI will generate a rebalancing proposal.
+              Set your target allocation percentages. The AI will generate a rebalancing proposal based on your preferences.
             </p>
-            {/* In production, this would be a more sophisticated allocation input */}
-            <div className="p-4 border rounded-lg bg-gray-50 dark:bg-gray-800">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Target allocation editor would go here. For MVP, using default allocation.
-              </p>
-            </div>
+            <TargetAllocationEditor
+              value={targetAllocation}
+              onChange={setTargetAllocation}
+            />
           </div>
           <Button
             onClick={handleRebalance}
-            disabled={rebalanceMutation.isPending}
+            disabled={rebalanceMutation.isPending || Object.keys(targetAllocation).length === 0}
             className="w-full shadow-lg hover:shadow-xl transition-all"
             size="lg"
           >

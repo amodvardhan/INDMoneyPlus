@@ -7,6 +7,8 @@ import type {
   RebalanceResponse,
   ExecutionPrepRequest,
   ExecutionPrepResponse,
+  QueryRequest,
+  QueryResponse,
   AgentRun,
   AgentActionLog,
 } from '@/lib/api/types'
@@ -43,6 +45,12 @@ export function useAgentLogs(agentRunId: number | null) {
     queryFn: () => apiClient.getAgentLogs(agentRunId!),
     enabled: !!agentRunId,
     refetchInterval: 2000, // Poll for logs every 2 seconds
+  })
+}
+
+export function useQueryAssistant() {
+  return useMutation({
+    mutationFn: (data: QueryRequest) => apiClient.queryAssistant(data),
   })
 }
 

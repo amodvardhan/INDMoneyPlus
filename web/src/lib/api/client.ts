@@ -15,6 +15,8 @@ import type {
   RebalanceResponse,
   ExecutionPrepRequest,
   ExecutionPrepResponse,
+  QueryRequest,
+  QueryResponse,
   AgentRun,
   AgentActionLog,
   Notification,
@@ -194,6 +196,14 @@ class ApiClient {
   async getAgentLogs(agentRunId: number): Promise<AgentActionLog[]> {
     const response = await this.client.get<AgentActionLog[]>(
       `/api/v1/agents/${agentRunId}/logs`
+    )
+    return response.data
+  }
+
+  async queryAssistant(data: QueryRequest): Promise<QueryResponse> {
+    const response = await this.client.post<QueryResponse>(
+      '/api/v1/agents/query',
+      data
     )
     return response.data
   }

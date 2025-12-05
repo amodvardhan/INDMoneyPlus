@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { X, Send, Bot, User, Sparkles, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { useAnalyzePortfolio } from '@/hooks/useAgent'
+import { useAnalyzePortfolio, useQueryAssistant } from '@/hooks/useAgent'
 import { useAuth } from '@/hooks/useAuth'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -28,7 +28,7 @@ export function ChatOverlay({ isOpen, onClose }: ChatOverlayProps) {
     {
       id: '1',
       role: 'assistant',
-      content: 'Hello! 👋 I\'m your AI portfolio assistant. I can help you analyze your portfolio, answer questions, and provide insights. How can I assist you today?',
+      content: 'Hello! 👋 I\'m your AI portfolio assistant. I can help you with:\n\n• Portfolio analysis and insights\n• Stock market questions and education\n• IPOs and NFOs explanations\n• Rebalancing strategies\n• Investment concepts and terminology\n• Market trends and analysis\n\nAsk me anything about investing, your portfolio, or the stock market!',
       timestamp: new Date(),
     },
   ])
@@ -37,6 +37,7 @@ export function ChatOverlay({ isOpen, onClose }: ChatOverlayProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const analyzeMutation = useAnalyzePortfolio()
+  const queryMutation = useQueryAssistant()
 
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -65,9 +66,12 @@ export function ChatOverlay({ isOpen, onClose }: ChatOverlayProps) {
     setInput('')
     setIsLoading(true)
 
-    // Check if user wants portfolio analysis
-    if (currentInput.toLowerCase().includes('analyze') || currentInput.toLowerCase().includes('portfolio')) {
-      try {
+    try {
+      // Check if user wants portfolio analysis (use dedicated endpoint)
+      if (
+        currentInput.toLowerCase().includes('analyze') &&
+        (currentInput.toLowerCase().includes('portfolio') || currentInput.toLowerCase().includes('my portfolio'))
+      ) {
         const result = await analyzeMutation.mutateAsync({
           user_id: user.id,
           portfolio_id: 1, // Mock portfolio ID
@@ -83,27 +87,45 @@ export function ChatOverlay({ isOpen, onClose }: ChatOverlayProps) {
         }
 
         setMessages((prev) => [...prev, assistantMessage])
-      } catch (error) {
-        const errorMessage: Message = {
+      } else {
+        // Use the general query endpoint for all other queries
+        const result = await queryMutation.mutateAsync({
+          user_id: user.id,
+          query: currentInput,
+        })
+
+        let content = result.answer
+
+        // Add suggested actions if available
+        if (result.suggested_actions && result.suggested_actions.length > 0) {
+          content += `\n\n💡 Suggested Actions:\n${result.suggested_actions.map((action) => `• ${action}`).join('\n')}`
+        }
+
+        // Add sources if available
+        if (result.sources && result.sources.length > 0) {
+          content += `\n\n📚 Sources: ${result.sources.map((s) => s.service).join(', ')}`
+        }
+
+        const assistantMessage: Message = {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: '❌ I apologize, but I encountered an error while analyzing your portfolio. Please try again later.',
+          content,
           timestamp: new Date(),
         }
-        setMessages((prev) => [...prev, errorMessage])
+
+        setMessages((prev) => [...prev, assistantMessage])
       }
-    } else {
-      // Simple response for other queries
-      const assistantMessage: Message = {
+    } catch (error: any) {
+      const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: `I understand you're asking about "${currentInput}". For detailed portfolio analysis, try asking me to "analyze my portfolio" or "analyze portfolio". I can also help with:\n\n• Rebalancing suggestions\n• Market insights\n• Investment recommendations\n• Risk analysis`,
+        content: `❌ I apologize, but I encountered an error: ${error.response?.data?.detail || error.message || 'Unknown error'}. Please try again later.`,
         timestamp: new Date(),
       }
-      setMessages((prev) => [...prev, assistantMessage])
+      setMessages((prev) => [...prev, errorMessage])
+    } finally {
+      setIsLoading(false)
     }
-
-    setIsLoading(false)
   }
 
   if (!isOpen) return null
@@ -243,7 +265,7 @@ export function ChatOverlay({ isOpen, onClose }: ChatOverlayProps) {
                     handleSend()
                   }
                 }}
-                placeholder="Ask me anything about your portfolio..."
+                placeholder="Ask me anything about stocks, portfolio, IPOs, NFOs, or investing..."
                 disabled={isLoading}
                 className="flex-1 h-12 border-2 focus:border-primary-500 rounded-xl"
               />
@@ -261,7 +283,7 @@ export function ChatOverlay({ isOpen, onClose }: ChatOverlayProps) {
               </Button>
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
-              Try: "Analyze my portfolio" or "What's my risk exposure?"
+              Try: "What is an IPO?", "Explain rebalancing", "Tell me about my portfolio", or "What are NFOs?"
             </p>
           </div>
         </div>

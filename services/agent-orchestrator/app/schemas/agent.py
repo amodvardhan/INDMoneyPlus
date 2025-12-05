@@ -118,3 +118,18 @@ class ExecutionPrepResponse(BaseModel):
     requires_approval: bool = True
     status: str
 
+
+class QueryRequest(BaseModel):
+    query: str = Field(..., description="User's question or query")
+    user_id: int = Field(..., description="User ID making the query")
+    context: Optional[Dict[str, Any]] = Field(None, description="Additional context for the query")
+
+
+class QueryResponse(BaseModel):
+    agent_run_id: int
+    answer: str = Field(..., description="Comprehensive answer to the user's query")
+    query_type: str = Field(..., description="Type of query (portfolio, stock, ipo, nfo, education, etc.)")
+    sources: List[SourceCitation] = Field(default_factory=list, description="Sources used in generating the answer")
+    suggested_actions: List[str] = Field(default_factory=list, description="Suggested follow-up actions")
+    status: str
+

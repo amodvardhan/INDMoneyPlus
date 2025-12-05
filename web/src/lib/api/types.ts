@@ -176,6 +176,28 @@ export interface Notification {
   created_at: string
 }
 
+export interface QueryRequest {
+  user_id: number
+  query: string
+  context?: Record<string, any>
+}
+
+export interface SourceCitation {
+  service: string
+  endpoint: string
+  timestamp: string
+  data_point: string
+}
+
+export interface QueryResponse {
+  agent_run_id: number
+  answer: string
+  query_type: string
+  sources: SourceCitation[]
+  suggested_actions: string[]
+  status: string
+}
+
 export interface ApiError {
   detail: string
   status_code?: number

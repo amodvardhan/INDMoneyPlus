@@ -12,7 +12,8 @@ import {
   LogOut,
   Menu,
   X,
-  Sparkles
+  Sparkles,
+  BookOpen
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState } from 'react'
@@ -23,6 +24,7 @@ const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Portfolio', href: '/portfolio', icon: PieChart },
   { name: 'Rebalance', href: '/rebalance', icon: TrendingUp },
+  { name: 'Handbook', href: '/handbook', icon: BookOpen },
 ]
 
 export function Navbar() {
