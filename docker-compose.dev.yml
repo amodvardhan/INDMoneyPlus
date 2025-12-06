@@ -260,9 +260,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      # vector-db-mock is optional - agent can work without it initially
-      # vector-db-mock:
-      #   condition: service_healthy
       marketdata-service:
         condition: service_healthy
       analytics-service:
@@ -352,6 +349,45 @@ services:
     networks:
       - portfolio-network
 
+  recommendations-service:
+    build:
+      context: ./services/recommendations-service
+      dockerfile: Dockerfile
+      target: dev
+    container_name: portfolio-recommendations-service
+    ports:
+      - "${RECOMMENDATIONS_SERVICE_PORT:-8088}:8088"
+      - "${RECOMMENDATIONS_SERVICE_DEBUG_PORT:-5687}:5678"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@postgres:5432/recommendations_db
+      REDIS_URL: redis://redis:6379/3
+      MARKETDATA_SERVICE_URL: http://marketdata-service:8081
+      AGGREGATOR_SERVICE_URL: http://aggregator-service:8083
+      AGENT_ORCHESTRATOR_URL: http://agent-orchestrator:8084
+      SERVICE_NAME: recommendations-service
+      SERVICE_VERSION: 0.1.0
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - ./services/recommendations-service:/app
+      - /app/.venv
+    command: sh -c "poetry lock || true && poetry install --no-interaction --no-ansi --no-root && poetry run uvicorn app.main:app --host 0.0.0.0 --port 8088 --reload --reload-dir /app --log-level ${LOG_LEVEL:-info}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      marketdata-service:
+        condition: service_healthy
+      agent-orchestrator:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8088/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - portfolio-network
+
   api-gateway:
     build:
       context: ./services/api-gateway
@@ -370,6 +406,7 @@ services:
       ORDER_ORCHESTRATOR_URL: http://order-orchestrator:8086
       NOTIFICATION_SERVICE_URL: http://notification-service:8085
       ADMIN_SERVICE_URL: http://admin-service:8087
+      RECOMMENDATIONS_SERVICE_URL: http://recommendations-service:8088
       JWT_SECRET: ${JWT_SECRET:-dev-secret-key-change-in-production}
       JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
       SERVICE_NAME: api-gateway
