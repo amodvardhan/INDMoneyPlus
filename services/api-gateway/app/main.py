@@ -35,6 +35,7 @@ SERVICE_URLS = {
     "order": os.getenv("ORDER_ORCHESTRATOR_URL", "http://order-orchestrator:8086"),
     "notification": os.getenv("NOTIFICATION_SERVICE_URL", "http://notification-service:8085"),
     "admin": os.getenv("ADMIN_SERVICE_URL", "http://admin-service:8087"),
+    "recommendations": os.getenv("RECOMMENDATIONS_SERVICE_URL", "http://recommendations-service:8088"),
 }
 
 async def verify_token(request: Request) -> Optional[str]:
@@ -135,9 +136,12 @@ async def proxy_get(service: str, path: str, request: Request):
         raise HTTPException(status_code=401, detail="Unauthorized")
     
     # For agent-orchestrator, the path already includes "agents" prefix
+    # For recommendations, the path includes "recommendations" prefix
     # So we need to include the service name in the path
     if service in ["agent", "agents"]:
         url = f"{SERVICE_URLS[service]}/api/v1/agents/{path}"
+    elif service == "recommendations":
+        url = f"{SERVICE_URLS[service]}/api/v1/recommendations/{path}"
     else:
         url = f"{SERVICE_URLS[service]}/api/v1/{path}"
     
@@ -174,9 +178,12 @@ async def proxy_post(service: str, path: str, request: Request):
         raise HTTPException(status_code=401, detail="Unauthorized")
     
     # For agent-orchestrator, the path already includes "agents" prefix
+    # For recommendations, the path includes "recommendations" prefix
     # So we need to include the service name in the path
     if service in ["agent", "agents"]:
         url = f"{SERVICE_URLS[service]}/api/v1/agents/{path}"
+    elif service == "recommendations":
+        url = f"{SERVICE_URLS[service]}/api/v1/recommendations/{path}"
     else:
         url = f"{SERVICE_URLS[service]}/api/v1/{path}"
     

@@ -2,6 +2,7 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import Optional, List, Dict, Any
+from enum import Enum
 
 
 class InstrumentBase(BaseModel):
@@ -90,4 +91,34 @@ class LatestPriceResponse(BaseModel):
     low: float
     close: float
     volume: Optional[int] = None
+
+
+class MarketCondition(str, Enum):
+    STRONG_BULL = "strong_bull"
+    BULL = "bull"
+    NEUTRAL = "neutral"
+    BEAR = "bear"
+    STRONG_BEAR = "strong_bear"
+
+
+class IndexHealth(BaseModel):
+    name: str
+    ticker: str
+    exchange: str
+    current_value: float
+    change: float
+    change_percent: float
+    volume: Optional[int] = None
+    trend: str  # strong_bullish, bullish, neutral, bearish, strong_bearish
+
+
+class MarketHealthResponse(BaseModel):
+    condition: MarketCondition
+    health_score: float = Field(..., description="Health score from 0-100")
+    sentiment: str
+    overall_change_percent: float
+    volatility: str  # Low, Medium, High
+    indices: List[IndexHealth]
+    last_updated: datetime
+    recommendation: str  # Buy, Hold, Caution
 

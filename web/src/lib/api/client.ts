@@ -20,6 +20,10 @@ import type {
   AgentRun,
   AgentActionLog,
   Notification,
+  MarketHealthData,
+  PriceComparisonData,
+  Recommendation,
+  TopRecommendationsResponse,
   ApiError,
 } from './types'
 
@@ -212,6 +216,46 @@ class ApiClient {
   async getNotifications(userId: number): Promise<Notification[]> {
     const response = await this.client.get<Notification[]>(
       `/api/v1/notifications/${userId}`
+    )
+    return response.data
+  }
+
+  // Market health endpoints
+  async getMarketHealth(): Promise<MarketHealthData> {
+    const response = await this.client.get<MarketHealthData>(
+      '/api/v1/marketdata/market-health'
+    )
+    return response.data
+  }
+
+  async getPriceComparison(ticker: string): Promise<PriceComparisonData> {
+    const response = await this.client.get<PriceComparisonData>(
+      `/api/v1/marketdata/price-comparison/${ticker}`
+    )
+    return response.data
+  }
+
+  // Recommendations endpoints
+  async getTopRecommendations(limit?: number, type?: string, forceRefresh?: boolean): Promise<TopRecommendationsResponse> {
+    const response = await this.client.get<TopRecommendationsResponse>(
+      '/api/v1/recommendations/top',
+      {
+        params: {
+          limit: limit || 10,
+          ...(type && { recommendation_type: type }),
+          ...(forceRefresh && { force_refresh: 'true' }),
+        },
+      }
+    )
+    return response.data
+  }
+
+  async getRecommendationsForTicker(ticker: string, exchange?: string): Promise<Recommendation[]> {
+    const response = await this.client.get<Recommendation[]>(
+      `/api/v1/recommendations/${ticker}`,
+      {
+        params: exchange ? { exchange } : {},
+      }
     )
     return response.data
   }

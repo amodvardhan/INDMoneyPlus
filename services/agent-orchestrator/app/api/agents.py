@@ -3,8 +3,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List
+from datetime import datetime
 from app.core.database import get_db
-from app.core.agent import AnalysisFlow, RebalanceFlow, ExecutionPrepFlow, QueryFlow
+from app.core.agent import AnalysisFlow, RebalanceFlow, ExecutionPrepFlow, QueryFlow, RecommendationsFlow
 from app.models.agent import AgentRun, AgentActionLog
 from app.schemas.agent import (
     AnalysisRequest,
@@ -15,6 +16,9 @@ from app.schemas.agent import (
     ExecutionPrepResponse,
     QueryRequest,
     QueryResponse,
+    RecommendationsRequest,
+    RecommendationsResponse,
+    StockRecommendation,
     AgentRunRead,
     AgentActionLogRead,
 )
@@ -290,6 +294,65 @@ async def query_assistant(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Query failed: {str(e)}"
+        )
+
+
+@router.post("/recommendations", response_model=RecommendationsResponse)
+async def generate_recommendations(
+    request: RecommendationsRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """Generate dynamic stock recommendations using AI analysis"""
+    # Create agent run
+    agent_run = AgentRun(
+        user_id=0,  # System-generated recommendations
+        flow_type="recommendations",
+        input_json={
+            "limit": request.limit,
+            "tickers": request.tickers,
+            "exchanges": request.exchanges
+        },
+        status="running"
+    )
+    db.add(agent_run)
+    await db.commit()
+    await db.refresh(agent_run)
+    
+    try:
+        # Execute recommendations flow
+        flow = RecommendationsFlow(db, agent_run)
+        result = await flow.execute(
+            limit=request.limit,
+            tickers=request.tickers,
+            exchanges=request.exchanges
+        )
+        
+        # Convert recommendations to StockRecommendation models
+        recommendations = []
+        for rec in result.get("recommendations", []):
+            recommendations.append(StockRecommendation(**rec))
+        
+        return RecommendationsResponse(
+            agent_run_id=agent_run.id,
+            recommendations=recommendations,
+            market_condition=result.get("market_condition", "unknown"),
+            generated_at=result.get("generated_at", datetime.utcnow().isoformat()),
+            sources=result.get("sources", []),
+            status=result.get("status", "completed")
+        )
+    except Exception as e:
+        try:
+            await db.rollback()
+        except Exception:
+            pass
+        try:
+            agent_run.status = "failed"
+            await db.commit()
+        except Exception:
+            pass
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Recommendations generation failed: {str(e)}"
         )
 
 

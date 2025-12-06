@@ -133,3 +133,32 @@ class QueryResponse(BaseModel):
     suggested_actions: List[str] = Field(default_factory=list, description="Suggested follow-up actions")
     status: str
 
+
+class RecommendationsRequest(BaseModel):
+    limit: int = Field(10, ge=1, le=50, description="Number of recommendations to generate")
+    tickers: Optional[List[str]] = Field(None, description="Specific tickers to analyze")
+    exchanges: Optional[List[str]] = Field(None, description="Exchanges for tickers")
+
+
+class StockRecommendation(BaseModel):
+    ticker: str
+    exchange: str
+    recommendation_type: str  # STRONG_BUY, BUY, HOLD, SELL, STRONG_SELL
+    target_price: float
+    current_price: float
+    confidence_score: float
+    risk_level: str
+    reasoning: str
+    source_name: str
+    source_type: str
+    expected_return_percent: Optional[float] = None
+
+
+class RecommendationsResponse(BaseModel):
+    agent_run_id: int
+    recommendations: List[StockRecommendation]
+    market_condition: str
+    generated_at: str
+    sources: List[SourceCitation]
+    status: str
+

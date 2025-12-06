@@ -198,6 +198,87 @@ export interface QueryResponse {
   status: string
 }
 
+export interface MarketHealthData {
+  condition: 'strong_bull' | 'bull' | 'neutral' | 'bear' | 'strong_bear'
+  health_score: number
+  sentiment: string
+  overall_change_percent: number
+  volatility: 'Low' | 'Medium' | 'High'
+  recommendation: string
+  last_updated: string
+  indices?: Array<{
+    name: string
+    ticker: string
+    exchange: string
+    current_value: number
+    change: number
+    change_percent: number
+    trend: string
+  }>
+}
+
+export interface PriceComparisonData {
+  ticker: string
+  prices: {
+    NSE?: {
+      price: number
+      change: number
+      change_percent: number
+      volume: number | null
+      high: number
+      low: number
+      timestamp: string
+    }
+    BSE?: {
+      price: number
+      change: number
+      change_percent: number
+      volume: number | null
+      high: number
+      low: number
+      timestamp: string
+    }
+  }
+  arbitrage?: {
+    difference: number
+    difference_percent: number
+    cheaper_exchange: 'NSE' | 'BSE'
+    opportunity: 'Significant' | 'Minor' | 'None'
+  }
+  recommendation?: string
+}
+
+export interface Recommendation {
+  id: number
+  ticker: string
+  exchange: string
+  recommendation_type: 'buy' | 'sell' | 'hold' | 'strong_buy' | 'strong_sell'
+  target_price: number | null
+  current_price: number | null
+  reasoning: string
+  risk_level: 'low' | 'medium' | 'high'
+  confidence_score: number
+  source: {
+    id: number
+    name: string
+    source_type: string
+    credibility_score: number
+    is_verified: string
+  }
+  source_url: string | null
+  source_date: string
+  is_active: string
+  expires_at: string | null
+  created_at: string
+}
+
+export interface TopRecommendationsResponse {
+  buy_recommendations: Recommendation[]
+  sell_recommendations: Recommendation[]
+  total_count: number
+  last_updated: string
+}
+
 export interface ApiError {
   detail: string
   status_code?: number

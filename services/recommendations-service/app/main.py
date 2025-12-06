@@ -1,5 +1,5 @@
 """
-Market Data Service - Market data ingestion, caching, and timeseries storage
+Recommendations Service - Stock recommendations based on research, news, and expert analysis
 """
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
@@ -7,9 +7,8 @@ from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_
 from starlette.responses import Response
 from app.core.config import settings
 from app.core.database import engine
-from app.models.instrument import Base
-from app.core.adapters import InMemoryAdapter
-from app.api import prices, instruments, corporate_actions, websocket, market_health
+from app.models import Base
+from app.api import recommendations
 
 # Prometheus metrics
 http_requests_total = Counter(
@@ -31,22 +30,26 @@ async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     
+    # Initialize Redis cache connection
+    from app.core.cache import get_redis_client
+    await get_redis_client()
+    
     yield
+    
+    # Shutdown: Close Redis connection
+    from app.core.cache import close_redis
+    await close_redis()
 
 
 app = FastAPI(
-    title="Market Data Service",
-    description="Market data ingestion, caching, and timeseries storage",
+    title="Recommendations Service",
+    description="Stock recommendations based on research, news, and expert analysis",
     version=settings.service_version,
     lifespan=lifespan
 )
 
 # Include routers
-app.include_router(prices.router, prefix="/api/v1", tags=["prices"])
-app.include_router(instruments.router, prefix="/api/v1/instruments", tags=["instruments"])
-app.include_router(corporate_actions.router, prefix="/api/v1/corporate-actions", tags=["corporate-actions"])
-app.include_router(market_health.router, prefix="/api/v1", tags=["market-health"])
-app.include_router(websocket.router, tags=["websocket"])
+app.include_router(recommendations.router, prefix="/api/v1", tags=["recommendations"])
 
 
 @app.get("/health")
@@ -67,4 +70,5 @@ async def metrics():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8003)
+    uvicorn.run(app, host="0.0.0.0", port=8088)
+

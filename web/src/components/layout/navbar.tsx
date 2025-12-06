@@ -13,7 +13,8 @@ import {
   Menu,
   X,
   Sparkles,
-  BookOpen
+  BookOpen,
+  BarChart3
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState } from 'react'
@@ -22,6 +23,7 @@ import { cn } from '@/lib/utils'
 const navigation = [
   { name: 'Home', href: '/', icon: Home },
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Market', href: '/market', icon: BarChart3 },
   { name: 'Portfolio', href: '/portfolio', icon: PieChart },
   { name: 'Rebalance', href: '/rebalance', icon: TrendingUp },
   { name: 'Handbook', href: '/handbook', icon: BookOpen },

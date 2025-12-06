@@ -71,4 +71,16 @@ class MarketDataTool(BaseTool):
             f"/api/v1/instruments/{ticker}",
             params={"exchange": exchange}
         )
+    
+    async def get_historical_prices(
+        self,
+        ticker: str,
+        exchange: str,
+        days: int = 30
+    ) -> Dict[str, Any]:
+        """Get historical prices for a ticker"""
+        from datetime import datetime, timedelta
+        to_date = datetime.utcnow()
+        from_date = to_date - timedelta(days=days)
+        return await self.get_price_timeseries(ticker, exchange, from_date, to_date)
 

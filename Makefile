@@ -30,6 +30,7 @@ dev-up:
 	@./scripts/docker-wait-for.sh http://localhost:8084/health agent-orchestrator 60
 	@./scripts/docker-wait-for.sh http://localhost:8085/health notification-service 60
 	@./scripts/docker-wait-for.sh http://localhost:8086/health order-orchestrator 60
+	@./scripts/docker-wait-for.sh http://localhost:8088/health recommendations-service 60
 	@./scripts/docker-wait-for.sh http://localhost:8000/health api-gateway 60
 	@./scripts/docker-wait-for.sh http://localhost:3000/api/health web 60 || echo "⚠️  Web health check skipped (may not have /api/health endpoint)"
 	@echo "✅ All services are healthy!"
@@ -44,6 +45,7 @@ dev-up:
 	@echo "  Agent:           http://localhost:8084"
 	@echo "  Notification:    http://localhost:8085"
 	@echo "  Order:           http://localhost:8086"
+	@echo "  Recommendations: http://localhost:8088"
 	@echo "  Prometheus:      http://localhost:9090"
 	@echo "  Grafana:         http://localhost:3001 (admin/admin)"
 
@@ -114,6 +116,7 @@ health-check:
 	@./scripts/docker-wait-for.sh http://localhost:8084/health agent-orchestrator 10 || echo "❌ agent-orchestrator unhealthy"
 	@./scripts/docker-wait-for.sh http://localhost:8085/health notification-service 10 || echo "❌ notification-service unhealthy"
 	@./scripts/docker-wait-for.sh http://localhost:8086/health order-orchestrator 10 || echo "❌ order-orchestrator unhealthy"
+	@./scripts/docker-wait-for.sh http://localhost:8088/health recommendations-service 10 || echo "❌ recommendations-service unhealthy"
 	@./scripts/docker-wait-for.sh http://localhost:8000/health api-gateway 10 || echo "❌ api-gateway unhealthy"
 	@echo "✅ Health check complete"
 

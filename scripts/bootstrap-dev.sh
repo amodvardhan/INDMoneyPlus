@@ -76,9 +76,9 @@ echo "✅ PostgreSQL is ready!"
 
 # Create databases
 echo "📦 Creating databases..."
-    for db in auth_db aggregator_db marketdata_db order_db admin_db worker_db notification_db agent_orchestrator_db; do
-        docker compose -f docker-compose.dev.yml exec -T postgres psql -U ${POSTGRES_USER:-user} -c "CREATE DATABASE $db;" 2>/dev/null || \
-        docker compose -f docker-compose.ci.yml exec -T postgres psql -U ${POSTGRES_USER:-user} -c "CREATE DATABASE $db;" 2>/dev/null || \
+    for db in auth_db aggregator_db marketdata_db order_db admin_db worker_db notification_db agent_orchestrator_db recommendations_db; do
+        docker compose -f docker-compose.dev.yml exec -T postgres psql -U ${POSTGRES_USER:-user} -d postgres -c "CREATE DATABASE $db;" 2>/dev/null || \
+        docker compose -f docker-compose.ci.yml exec -T postgres psql -U ${POSTGRES_USER:-user} -d postgres -c "CREATE DATABASE $db;" 2>/dev/null || \
         echo "  $db may already exist"
     done
 fi

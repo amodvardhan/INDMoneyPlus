@@ -66,7 +66,7 @@ export function ChatOverlay({ isOpen, onClose }: ChatOverlayProps) {
     setInput('')
     setIsLoading(true)
 
-    try {
+      try {
       // Check if user wants portfolio analysis (use dedicated endpoint)
       if (
         currentInput.toLowerCase().includes('analyze') &&
