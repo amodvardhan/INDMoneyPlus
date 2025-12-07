@@ -1,0 +1,174 @@
+"""Yahoo Finance adapter for real market data"""
+import logging
+import asyncio
+from typing import List, Optional
+from datetime import datetime, timedelta
+from concurrent.futures import ThreadPoolExecutor
+import yfinance as yf
+from app.core.adapters.base import MarketDataAdapter
+from app.schemas.market_data import PricePointRead, LatestPriceResponse
+
+logger = logging.getLogger(__name__)
+
+
+class YahooFinanceAdapter(MarketDataAdapter):
+    """Adapter that fetches real prices from Yahoo Finance using yfinance library"""
+    
+    def __init__(self):
+        # Use ThreadPoolExecutor to run yfinance (synchronous) in async context
+        self.executor = ThreadPoolExecutor(max_workers=5)
+    
+    def _get_yahoo_symbol(self, ticker: str, exchange: str) -> str:
+        """Convert ticker and exchange to Yahoo Finance symbol"""
+        ticker_upper = ticker.upper()
+        exchange_upper = exchange.upper()
+        
+        # Map exchanges to Yahoo Finance suffixes
+        exchange_map = {
+            "NSE": ".NS",  # NSE stocks
+            "BSE": ".BO",  # BSE stocks
+            "NASDAQ": "",  # No suffix for NASDAQ
+            "NYSE": "",   # No suffix for NYSE
+        }
+        
+        suffix = exchange_map.get(exchange_upper, "")
+        return f"{ticker_upper}{suffix}"
+    
+    async def get_latest_price(self, ticker: str, exchange: str) -> Optional[LatestPriceResponse]:
+        """Get latest price from Yahoo Finance using yfinance library"""
+        symbol = self._get_yahoo_symbol(ticker, exchange)
+        
+        try:
+            # Run yfinance in thread pool (it's synchronous)
+            loop = asyncio.get_event_loop()
+            ticker_obj = await loop.run_in_executor(self.executor, yf.Ticker, symbol)
+            
+            # Get info and history
+            info = await loop.run_in_executor(self.executor, lambda: ticker_obj.info)
+            hist = await loop.run_in_executor(
+                self.executor, 
+                lambda: ticker_obj.history(period="1d", interval="1d")
+            )
+            
+            if hist.empty:
+                logger.warning(f"No data from Yahoo Finance for {symbol}")
+                return None
+            
+            # Get latest price from history
+            latest_row = hist.iloc[-1]
+            
+            # Try multiple price fields from info
+            current_price = (
+                info.get("regularMarketPrice") or 
+                info.get("currentPrice") or 
+                info.get("previousClose") or
+                float(latest_row["Close"])
+            )
+            current_price = float(current_price)
+            
+            previous_close = float(
+                info.get("previousClose") or 
+                info.get("regularMarketPreviousClose") or 
+                latest_row["Close"]
+            )
+            
+            # Log all price-related fields for debugging
+            logger.info(f"Yahoo Finance data for {symbol}:")
+            logger.info(f"  regularMarketPrice: {info.get('regularMarketPrice')}")
+            logger.info(f"  currentPrice: {info.get('currentPrice')}")
+            logger.info(f"  previousClose: {info.get('previousClose')}")
+            logger.info(f"  history Close: {latest_row['Close']}")
+            logger.info(f"  currency: {info.get('currency', 'INR')}")
+            logger.info(f"  Using price: {current_price}")
+            
+            # Calculate change percent
+            change_percent = ((current_price - previous_close) / previous_close * 100) if previous_close > 0 else 0
+            
+            # Get timestamp
+            timestamp = latest_row.name if hasattr(latest_row.name, 'timestamp') else datetime.utcnow()
+            if isinstance(timestamp, datetime):
+                price_timestamp = timestamp
+            else:
+                price_timestamp = datetime.utcnow()
+            
+            return LatestPriceResponse(
+                ticker=ticker.upper(),
+                exchange=exchange.upper(),
+                price=round(current_price, 2),
+                timestamp=price_timestamp,
+                open=round(float(latest_row["Open"]), 2),
+                high=round(float(latest_row["High"]), 2),
+                low=round(float(latest_row["Low"]), 2),
+                close=round(current_price, 2),
+                volume=int(latest_row["Volume"]) if not hist.empty else 0,
+                change_percent=round(change_percent, 2)
+            )
+            
+        except Exception as e:
+            logger.error(f"Error fetching price for {ticker} from Yahoo Finance: {e}", exc_info=True)
+            return None
+    
+    async def get_historical_prices(
+        self,
+        ticker: str,
+        exchange: str,
+        from_date: datetime,
+        to_date: datetime
+    ) -> List[PricePointRead]:
+        """Get historical prices from Yahoo Finance using yfinance library"""
+        try:
+            symbol = self._get_yahoo_symbol(ticker, exchange)
+            
+            # Calculate period for yfinance
+            days_diff = (to_date - from_date).days
+            if days_diff <= 5:
+                period = "5d"
+            elif days_diff <= 30:
+                period = "1mo"
+            elif days_diff <= 90:
+                period = "3mo"
+            elif days_diff <= 180:
+                period = "6mo"
+            elif days_diff <= 365:
+                period = "1y"
+            else:
+                period = "2y"
+            
+            # Run yfinance in thread pool
+            loop = asyncio.get_event_loop()
+            ticker_obj = await loop.run_in_executor(self.executor, yf.Ticker, symbol)
+            hist = await loop.run_in_executor(
+                self.executor,
+                lambda: ticker_obj.history(period=period, interval="1d")
+            )
+            
+            if hist.empty:
+                return []
+            
+            price_points = []
+            for idx, row in hist.iterrows():
+                dt = idx.to_pydatetime() if hasattr(idx, 'to_pydatetime') else datetime.utcnow()
+                if dt < from_date or dt > to_date:
+                    continue
+                
+                price_points.append(PricePointRead(
+                    id=0,
+                    instrument_id=0,  # Will be set by caller
+                    timestamp=dt,
+                    open=round(float(row["Open"]), 2),
+                    high=round(float(row["High"]), 2),
+                    low=round(float(row["Low"]), 2),
+                    close=round(float(row["Close"]), 2),
+                    volume=int(row["Volume"]) if "Volume" in row else 0
+                ))
+            
+            return price_points
+            
+        except Exception as e:
+            logger.error(f"Error fetching historical prices for {ticker} from Yahoo Finance: {e}", exc_info=True)
+            return []
+    
+    async def search_instruments(self, query: str) -> List[dict]:
+        """Search for instruments (not implemented for Yahoo Finance)"""
+        return []
+

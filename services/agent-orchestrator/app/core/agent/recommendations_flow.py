@@ -76,18 +76,21 @@ class RecommendationsFlow(BaseAgentFlow):
                 }
                 
                 try:
-                    # Try to get latest price
+                    # Try to get latest price from market data service
                     price_result = await self.marketdata_tool.get_latest_price(ticker, exchange)
                     price_data = price_result.get("data", {})
-                    if price_data:
+                    if price_data and price_data.get("price", 0) > 0:
                         stock_analysis["current_price"] = price_data.get("price", 0)
                         stock_analysis["change_percent"] = price_data.get("change_percent", 0)
                         stock_analysis["volume"] = price_data.get("volume", 0)
+                    else:
+                        logger.warning(f"Invalid price data for {ticker}: {price_data}")
+                        # Skip this stock if we can't get real price
+                        continue
                 except Exception as e:
-                    logger.debug(f"Price data not available for {ticker}: {e}")
-                    # Use mock price based on ticker (for demo purposes)
-                    stock_analysis["current_price"] = self._get_mock_price(ticker)
-                    stock_analysis["change_percent"] = (hash(ticker) % 10) - 5  # Random -5% to +5%
+                    logger.warning(f"Failed to get real price for {ticker}: {e}")
+                    # Skip stocks without real price data - no hardcoded prices
+                    continue
                 
                 try:
                     # Try to get historical data
@@ -348,31 +351,12 @@ Prioritize stocks with strong trends, good fundamentals, and clear opportunities
             return self._generate_fallback_recommendations(stock_data, limit)
     
     def _get_mock_price(self, ticker: str) -> float:
-        """Get mock price for ticker (used when market data unavailable)"""
-        # Use hash-based pricing for consistency
-        base_prices = {
-            "RELIANCE": 2650.0,
-            "TCS": 3850.0,
-            "HDFCBANK": 1720.0,
-            "INFY": 1520.0,
-            "ICICIBANK": 1020.0,
-            "HINDUNILVR": 2500.0,
-            "SBIN": 650.0,
-            "BHARTIARTL": 1200.0,
-            "ITC": 450.0,
-            "KOTAKBANK": 1800.0,
-            "LT": 3500.0,
-            "AXISBANK": 1100.0,
-            "ASIANPAINT": 3200.0,
-            "MARUTI": 10500.0,
-            "TITAN": 3500.0,
-            "NESTLEIND": 24000.0,
-            "ULTRACEMCO": 9500.0,
-            "WIPRO": 450.0,
-            "SUNPHARMA": 1200.0,
-            "ONGC": 250.0,
-        }
-        return base_prices.get(ticker.upper(), 1000.0 + (hash(ticker) % 5000))
+        """Get estimated price for ticker (ONLY used as last resort when all data sources fail)"""
+        # This should rarely be used - real prices should come from market data service
+        # Using a simple hash-based approach to avoid hardcoding
+        logger.warning(f"Using estimated price for {ticker} - real market data unavailable")
+        # Return None to indicate price is not available rather than a fake price
+        return 0.0  # Will be handled by the calling code
     
     def _generate_fallback_recommendations(
         self,
@@ -396,7 +380,11 @@ Prioritize stocks with strong trends, good fundamentals, and clear opportunities
         
         for stock in sorted_stocks:
             change_percent = stock.get("change_percent", 0)
-            current_price = stock.get("current_price", 0) or self._get_mock_price(stock["ticker"])
+            current_price = stock.get("current_price", 0)
+            
+            # Skip if no real price available
+            if current_price <= 0:
+                continue
             
             # Determine recommendation type
             if buy_count < max_buy and (change_percent > 0 or hash(stock["ticker"]) % 3 == 0):

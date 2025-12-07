@@ -17,7 +17,17 @@ def get_adapter() -> MarketDataAdapter:
     """Get market data adapter"""
     global _adapter
     if _adapter is None:
-        _adapter = InMemoryAdapter()
+        from app.core.config import settings
+        from app.core.adapters.yahoo_finance import YahooFinanceAdapter
+        from app.core.adapters.tiingo import TiingoAdapter
+        
+        # Prefer Tiingo if API key is available
+        if settings.tiingo_api_key and (settings.adapter_type == "tiingo" or settings.adapter_type == "auto"):
+            _adapter = TiingoAdapter(api_key=settings.tiingo_api_key)
+        elif settings.adapter_type == "yahoo_finance" or settings.adapter_type == "real":
+            _adapter = YahooFinanceAdapter()
+        else:
+            _adapter = InMemoryAdapter()
     return _adapter
 
 

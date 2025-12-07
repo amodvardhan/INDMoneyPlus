@@ -145,7 +145,7 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@postgres:5432/marketdata_db
       REDIS_URL: redis://redis:6379/0
-      ADAPTER_TYPE: ${ADAPTER_TYPE:-in_memory}
+      ADAPTER_TYPE: ${ADAPTER_TYPE:-auto}
       ALPHAVANTAGE_API_KEY: ${ALPHAVANTAGE_API_KEY:-}
       TIINGO_API_KEY: ${TIINGO_API_KEY:-}
       AUTH_SERVICE_URL: http://auth-service:8080

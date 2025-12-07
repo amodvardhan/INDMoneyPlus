@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     
     # Adapter Configuration
-    adapter_type: str = "in_memory"  # in_memory, alphavantage, tiingo
+    adapter_type: str = "auto"  # auto (prefer Tiingo if key available, else Yahoo), yahoo_finance, tiingo, in_memory (synthetic), alphavantage
     
     # AlphaVantage API (if using)
     alphavantage_api_key: Optional[str] = None

@@ -71,7 +71,7 @@ class MarketDataTool(BaseTool):
             f"/api/v1/instruments/{ticker}",
             params={"exchange": exchange}
         )
-    
+
     async def get_historical_prices(
         self,
         ticker: str,
