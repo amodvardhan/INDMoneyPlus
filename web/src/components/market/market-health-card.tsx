@@ -176,8 +176,8 @@ export function MarketHealthCard({ data, isLoading }: MarketHealthCardProps) {
                 {data.recommendation === 'Buy'
                   ? 'Market conditions are favorable for investments. Consider buying opportunities.'
                   : data.recommendation === 'Hold'
-                  ? 'Market is stable. Maintain current positions and monitor closely.'
-                  : 'Exercise caution. Market conditions suggest waiting or reducing exposure.'}
+                    ? 'Market is stable. Maintain current positions and monitor closely.'
+                    : 'Exercise caution. Market conditions suggest waiting or reducing exposure.'}
               </p>
             </div>
           </div>
@@ -205,9 +205,10 @@ export function MarketHealthCard({ data, isLoading }: MarketHealthCardProps) {
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="font-bold text-gray-900 dark:text-white">
-                        {index.current_value.toLocaleString('en-IN', {
+                      <div className="font-bold text-gray-900 dark:text-white text-lg">
+                        ₹{index.current_value.toLocaleString('en-IN', {
                           maximumFractionDigits: 2,
+                          minimumFractionDigits: 2,
                         })}
                       </div>
                       <div className={cn(

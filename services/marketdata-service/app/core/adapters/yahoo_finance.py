@@ -238,13 +238,13 @@ class YahooFinanceAdapter(MarketDataAdapter):
                         price_points.append(PricePointRead(
                             id=0,
                             instrument_id=0,
-                            timestamp=dt,
-                            open=round(float(row["Open"]), 2),
-                            high=round(float(row["High"]), 2),
-                            low=round(float(row["Low"]), 2),
-                            close=round(float(row["Close"]), 2),
-                            volume=int(row["Volume"]) if "Volume" in row else 0
-                        ))
+                    timestamp=dt,
+                    open=round(float(row["Open"]), 2),
+                    high=round(float(row["High"]), 2),
+                    low=round(float(row["Low"]), 2),
+                    close=round(float(row["Close"]), 2),
+                    volume=int(row["Volume"]) if "Volume" in row else 0
+                ))
             
             return price_points
             
