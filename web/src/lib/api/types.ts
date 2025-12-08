@@ -87,6 +87,21 @@ export interface LatestPriceResponse {
   volume: number | null
 }
 
+export interface StockFundamentals {
+  ticker: string
+  exchange: string
+  market_cap: number | null
+  pe_ratio: number | null
+  dividend_yield: number | null
+  dividend_amount: number | null
+  week_52_high: number | null
+  week_52_low: number | null
+  beta: number | null
+  eps: number | null
+  book_value: number | null
+  data_source: string | null
+}
+
 export interface AnalysisRequest {
   user_id: number
   portfolio_id: number

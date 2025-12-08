@@ -18,7 +18,8 @@ from app.models.instrument import Instrument, PricePoint
 from app.schemas.market_data import (
     PriceTimeseriesResponse,
     LatestPriceResponse,
-    PricePointRead
+    PricePointRead,
+    StockFundamentals
 )
 
 logger = logging.getLogger(__name__)
@@ -368,4 +369,30 @@ async def get_price_cache_stats():
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error getting cache stats: {str(e)}"
         )
+
+
+@router.get("/price/{ticker}/fundamentals", response_model=StockFundamentals)
+async def get_stock_fundamentals(
+    ticker: str,
+    exchange: str = Query(..., description="Exchange code (e.g., NSE, NASDAQ)"),
+    adapter: MarketDataAdapter = Depends(get_adapter)
+):
+    """
+    Get stock fundamentals (market cap, P/E ratio, dividend yield, 52-week high/low, etc.)
+    """
+    logger.info(f"🔍 Fetching fundamentals for {ticker} on {exchange} using adapter: {adapter.__class__.__name__}")
+    
+    fundamentals = await adapter.get_fundamentals(ticker, exchange)
+    
+    if not fundamentals:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                f"Unable to fetch fundamentals for {ticker} on {exchange}. "
+                f"The market data adapter ({adapter.__class__.__name__}) does not support fundamentals or returned no data."
+            )
+        )
+    
+    logger.info(f"✅ Fetched fundamentals for {ticker} on {exchange}")
+    return fundamentals
 

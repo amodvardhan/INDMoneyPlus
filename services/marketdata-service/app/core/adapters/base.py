@@ -2,7 +2,7 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional
 from datetime import datetime
-from app.schemas.market_data import PricePointRead, LatestPriceResponse
+from app.schemas.market_data import PricePointRead, LatestPriceResponse, StockFundamentals
 
 
 class MarketDataAdapter(ABC):
@@ -28,4 +28,8 @@ class MarketDataAdapter(ABC):
     async def search_instruments(self, query: str) -> List[dict]:
         """Search for instruments by name or ticker"""
         pass
+    
+    async def get_fundamentals(self, ticker: str, exchange: str) -> Optional[StockFundamentals]:
+        """Get stock fundamentals (market cap, P/E ratio, dividend yield, etc.) - Optional implementation"""
+        return None
 

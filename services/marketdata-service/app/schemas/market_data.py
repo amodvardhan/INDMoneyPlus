@@ -95,6 +95,22 @@ class LatestPriceResponse(BaseModel):
     change_percent: Optional[float] = None  # Price change percentage
 
 
+class StockFundamentals(BaseModel):
+    """Stock fundamental data like market cap, P/E ratio, etc."""
+    ticker: str
+    exchange: str
+    market_cap: Optional[float] = None  # Market capitalization
+    pe_ratio: Optional[float] = None  # Price-to-Earnings ratio
+    dividend_yield: Optional[float] = None  # Dividend yield percentage
+    dividend_amount: Optional[float] = None  # Quarterly dividend amount
+    week_52_high: Optional[float] = None  # 52-week high
+    week_52_low: Optional[float] = None  # 52-week low
+    beta: Optional[float] = None  # Beta (volatility measure)
+    eps: Optional[float] = None  # Earnings per share
+    book_value: Optional[float] = None  # Book value per share
+    data_source: Optional[str] = None
+
+
 class MarketCondition(str, Enum):
     STRONG_BULL = "strong_bull"
     BULL = "bull"

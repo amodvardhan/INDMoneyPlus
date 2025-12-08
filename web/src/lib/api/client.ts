@@ -8,6 +8,7 @@ import type {
   LogoutRequest,
   HoldingsResponse,
   PriceTimeseriesResponse,
+  StockFundamentals,
   LatestPriceResponse,
   AnalysisRequest,
   AnalysisResponse,
@@ -152,6 +153,16 @@ class ApiClient {
           from: fromDate,
           to: toDate,
         },
+      }
+    )
+    return response.data
+  }
+
+  async getStockFundamentals(ticker: string, exchange: string): Promise<StockFundamentals> {
+    const response = await this.client.get<StockFundamentals>(
+      `/api/v1/marketdata/price/${ticker}/fundamentals`,
+      {
+        params: { exchange },
       }
     )
     return response.data

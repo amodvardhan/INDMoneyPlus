@@ -6,9 +6,12 @@ FROM base AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Copy package files
+# Copy package files from web directory
 COPY package.json package-lock.json* ./
-RUN npm ci
+
+# Handle workspace dependencies - copy root node_modules if needed
+# For standalone deployment, install dependencies locally
+RUN npm ci || (npm install && npm install lightweight-charts)
 
 # Rebuild the source code only when needed
 FROM base AS builder

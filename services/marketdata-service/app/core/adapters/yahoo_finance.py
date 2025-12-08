@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor
 import yfinance as yf
 from app.core.adapters.base import MarketDataAdapter
-from app.schemas.market_data import PricePointRead, LatestPriceResponse
+from app.schemas.market_data import PricePointRead, LatestPriceResponse, StockFundamentals
 
 logger = logging.getLogger(__name__)
 
@@ -200,4 +200,66 @@ class YahooFinanceAdapter(MarketDataAdapter):
     async def search_instruments(self, query: str) -> List[dict]:
         """Search for instruments (not implemented for Yahoo Finance)"""
         return []
+    
+    async def get_fundamentals(self, ticker: str, exchange: str) -> Optional[StockFundamentals]:
+        """Get stock fundamentals from Yahoo Finance"""
+        symbol = self._get_yahoo_symbol(ticker, exchange)
+        
+        try:
+            loop = asyncio.get_event_loop()
+            ticker_obj = await loop.run_in_executor(self.executor, yf.Ticker, symbol)
+            
+            # Get info which contains fundamentals
+            info = None
+            try:
+                info = await loop.run_in_executor(self.executor, lambda: ticker_obj.info)
+            except Exception as e:
+                logger.warning(f"Could not fetch fundamentals info for {symbol}: {e}")
+                return None
+            
+            if not info or not isinstance(info, dict):
+                return None
+            
+            # Extract fundamentals
+            market_cap = info.get("marketCap") or info.get("enterpriseValue")
+            pe_ratio = info.get("trailingPE") or info.get("forwardPE")
+            dividend_yield = info.get("dividendYield")
+            dividend_amount = info.get("dividendRate")  # Annual dividend, divide by 4 for quarterly
+            week_52_high = info.get("fiftyTwoWeekHigh")
+            week_52_low = info.get("fiftyTwoWeekLow")
+            beta = info.get("beta")
+            eps = info.get("trailingEps") or info.get("forwardEps")
+            book_value = info.get("bookValue")
+            
+            # Convert dividend yield from decimal to percentage if needed
+            if dividend_yield and dividend_yield < 1:
+                dividend_yield = dividend_yield * 100
+            
+            # Convert market cap to crores for Indian stocks (if in INR)
+            if market_cap and exchange.upper() in ["NSE", "BSE"]:
+                # Market cap is usually in rupees, convert to crores (divide by 10^7)
+                market_cap_crores = market_cap / 10000000
+            else:
+                market_cap_crores = market_cap / 1000000 if market_cap else None  # Millions for US stocks
+            
+            logger.info(f"Fetched fundamentals for {symbol}: Market Cap={market_cap_crores}Cr, P/E={pe_ratio}, Div Yield={dividend_yield}%")
+            
+            return StockFundamentals(
+                ticker=ticker.upper(),
+                exchange=exchange.upper(),
+                market_cap=round(market_cap_crores, 2) if market_cap_crores else None,
+                pe_ratio=round(pe_ratio, 2) if pe_ratio else None,
+                dividend_yield=round(dividend_yield, 2) if dividend_yield else None,
+                dividend_amount=round((dividend_amount / 4), 2) if dividend_amount else None,  # Quarterly
+                week_52_high=round(week_52_high, 2) if week_52_high else None,
+                week_52_low=round(week_52_low, 2) if week_52_low else None,
+                beta=round(beta, 2) if beta else None,
+                eps=round(eps, 2) if eps else None,
+                book_value=round(book_value, 2) if book_value else None,
+                data_source="yahoo_finance"
+            )
+            
+        except Exception as e:
+            logger.error(f"Error fetching fundamentals for {ticker} from Yahoo Finance: {e}", exc_info=True)
+            return None
 

@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { TrendingUp, TrendingDown, ExternalLink, AlertCircle, Info, Star, RefreshCw, Sparkles, Clock } from 'lucide-react'
+import { TrendingUp, TrendingDown, ExternalLink, AlertCircle, Info, Star, RefreshCw, Sparkles, Clock, CheckCircle2 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
@@ -32,6 +32,10 @@ export interface Recommendation {
   is_active: string
   expires_at: string | null
   created_at: string
+  price_is_stale?: boolean
+  price_age_hours?: number
+  price_last_updated?: string
+  price_source?: string
 }
 
 interface RecommendationsListProps {
@@ -52,7 +56,7 @@ export function RecommendationsList({
   onRecommendationClick,
 }: RecommendationsListProps) {
   const [isRefreshing, setIsRefreshing] = useState(false)
-  
+
   const handleRefresh = async () => {
     if (onRefresh && !isRefreshing) {
       setIsRefreshing(true)
@@ -63,7 +67,7 @@ export function RecommendationsList({
       }
     }
   }
-  
+
   const formatLastUpdated = (dateString?: string) => {
     if (!dateString) return 'Just now'
     try {
@@ -72,7 +76,7 @@ export function RecommendationsList({
       const diffMs = now.getTime() - date.getTime()
       const diffMins = Math.floor(diffMs / 60000)
       const diffHours = Math.floor(diffMs / 3600000)
-      
+
       if (diffMins < 1) return 'Just now'
       if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`
       if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`
@@ -81,7 +85,7 @@ export function RecommendationsList({
       return 'Unknown'
     }
   }
-  
+
   const isAIGenerated = (source: Recommendation['source']) => {
     return source.name === 'AI Market Analyst' || source.source_type === 'ai_analysis'
   }
@@ -144,7 +148,8 @@ export function RecommendationsList({
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: index * 0.1 }}
-        className="p-4 border-2 rounded-lg hover:shadow-md transition-shadow cursor-pointer"
+        whileHover={{ scale: 1.02, y: -2 }}
+        className="p-5 border-2 rounded-xl hover:shadow-xl transition-all cursor-pointer bg-white dark:bg-gray-900 hover:border-primary-300 dark:hover:border-primary-700"
         onClick={() => {
           if (onRecommendationClick) {
             onRecommendationClick(rec)
@@ -153,25 +158,25 @@ export function RecommendationsList({
           }
         }}
       >
-        <div className="flex items-start justify-between mb-3">
+        <div className="flex items-start justify-between mb-4">
           <div className="flex-1">
-            <div className="flex items-center gap-2 mb-2">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+            <div className="flex items-center gap-2 mb-3 flex-wrap">
+              <h3 className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
                 {rec.ticker}
               </h3>
-              <Badge variant="outline" className="text-xs">
+              <Badge variant="outline" className="text-xs font-medium border-gray-300 dark:border-gray-600">
                 {rec.exchange}
               </Badge>
-              <Badge className={cn('text-xs', getRecommendationColor(rec.recommendation_type))}>
+              <Badge className={cn('text-xs font-semibold px-3 py-1 shadow-sm', getRecommendationColor(rec.recommendation_type))}>
                 {rec.recommendation_type.replace('_', ' ').toUpperCase()}
               </Badge>
               {rec.source.is_verified === 'true' && (
-                <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                <Star className="h-4 w-4 text-yellow-500 fill-yellow-500 animate-pulse" />
               )}
             </div>
-            <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+            <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400 flex-wrap">
               {rec.current_price && (
-                <span>Current: ₹{rec.current_price.toFixed(2)}</span>
+                <span className="font-medium">Current: ₹{rec.current_price.toFixed(2)}</span>
               )}
               {rec.target_price && (
                 <span className="font-medium">
@@ -186,6 +191,31 @@ export function RecommendationsList({
                   {potentialReturn > 0 ? '+' : ''}{potentialReturn.toFixed(1)}% potential
                 </span>
               )}
+              {rec.price_source && (
+                <Badge variant="outline" className={cn(
+                  'text-xs',
+                  rec.price_source === 'yahoo_finance' && 'bg-purple-100 text-purple-700 border-purple-300 dark:bg-purple-900/30 dark:text-purple-400',
+                  rec.price_source === 'tiingo' && 'bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-900/30 dark:text-blue-400',
+                  rec.price_source === 'stored' && 'bg-gray-100 text-gray-700 border-gray-300',
+                  !['yahoo_finance', 'tiingo', 'stored'].includes(rec.price_source) && 'bg-indigo-100 text-indigo-700 border-indigo-300'
+                )}>
+                  {rec.price_source === 'yahoo_finance' ? 'Yahoo Finance' :
+                    rec.price_source === 'tiingo' ? 'Tiingo' :
+                      rec.price_source === 'stored' ? 'Stored' : rec.price_source}
+                </Badge>
+              )}
+              {rec.price_is_stale && (
+                <Badge variant="outline" className="text-xs bg-yellow-100 text-yellow-700 border-yellow-300">
+                  <Clock className="h-3 w-3 mr-1" />
+                  Stale
+                </Badge>
+              )}
+              {!rec.price_is_stale && rec.price_source && (
+                <Badge variant="outline" className="text-xs bg-green-100 text-green-700 border-green-300">
+                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                  Live
+                </Badge>
+              )}
             </div>
           </div>
           <div className="text-right">
@@ -196,27 +226,28 @@ export function RecommendationsList({
           </div>
         </div>
 
-        <p className="text-sm text-gray-700 dark:text-gray-300 mb-3 line-clamp-2">
+        <p className="text-sm text-gray-700 dark:text-gray-300 mb-4 line-clamp-2 leading-relaxed">
           {rec.reasoning}
         </p>
 
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className={cn('text-xs', getRiskColor(rec.risk_level))}>
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge variant="outline" className={cn('text-xs font-medium px-2.5 py-1', getRiskColor(rec.risk_level))}>
               {rec.risk_level.toUpperCase()} Risk
             </Badge>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-500 dark:text-gray-400">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">
                 Source: {rec.source.name}
               </span>
               {isAIGenerated(rec.source) && (
-                <Badge variant="outline" className="text-xs px-1.5 py-0 border-blue-500 text-blue-700 dark:text-blue-400">
+                <Badge variant="outline" className="text-xs px-2 py-0.5 border-blue-500 text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30">
                   <Sparkles className="h-2.5 w-2.5 mr-1" />
                   AI
                 </Badge>
               )}
               {rec.source.is_verified === 'true' && !isAIGenerated(rec.source) && (
-                <Badge variant="outline" className="text-xs px-1.5 py-0">
+                <Badge variant="outline" className="text-xs px-2 py-0.5 bg-green-50 text-green-700 border-green-300 dark:bg-green-900/30 dark:text-green-400">
+                  <CheckCircle2 className="h-2.5 w-2.5 mr-1" />
                   Verified
                 </Badge>
               )}
@@ -230,7 +261,7 @@ export function RecommendationsList({
                 e.stopPropagation()
                 window.open(rec.source_url!, '_blank')
               }}
-              className="text-xs"
+              className="text-xs hover:bg-gray-100 dark:hover:bg-gray-800"
             >
               <ExternalLink className="h-3 w-3 mr-1" />
               Source
@@ -245,8 +276,8 @@ export function RecommendationsList({
     <div className="space-y-6">
       {/* Buy Recommendations */}
       {buyRecommendations.length > 0 && (
-        <Card className="border-2 shadow-lg">
-          <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-b">
+        <Card className="border-2 shadow-xl bg-gradient-to-br from-white to-green-50/30 dark:from-gray-900 dark:to-green-950/30">
+          <CardHeader className="bg-gradient-to-r from-green-50 via-emerald-50 to-teal-50 dark:from-green-900/30 dark:via-emerald-900/20 dark:to-teal-900/20 border-b-2 border-green-200 dark:border-green-800">
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <CardTitle className="text-xl flex items-center gap-2">
@@ -294,8 +325,8 @@ export function RecommendationsList({
 
       {/* Sell Recommendations */}
       {sellRecommendations.length > 0 && (
-        <Card className="border-2 shadow-lg">
-          <CardHeader className="bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border-b">
+        <Card className="border-2 shadow-xl bg-gradient-to-br from-white to-red-50/30 dark:from-gray-900 dark:to-red-950/30">
+          <CardHeader className="bg-gradient-to-r from-red-50 via-orange-50 to-amber-50 dark:from-red-900/30 dark:via-orange-900/20 dark:to-amber-900/20 border-b-2 border-red-200 dark:border-red-800">
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <CardTitle className="text-xl flex items-center gap-2">
@@ -366,8 +397,8 @@ export function RecommendationsList({
           </div>
           <div className="flex-1">
             <div className="text-sm text-blue-800 dark:text-blue-200 mb-2">
-              <strong>AI-Powered Recommendations:</strong> These recommendations are generated dynamically using 
-              advanced AI analysis of real-time market data, trends, and market conditions. They are updated 
+              <strong>AI-Powered Recommendations:</strong> These recommendations are generated dynamically using
+              advanced AI analysis of real-time market data, trends, and market conditions. They are updated
               regularly to reflect the latest market insights.
             </div>
             <div className="text-xs text-blue-700 dark:text-blue-300">
