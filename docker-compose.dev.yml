@@ -145,9 +145,9 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@postgres:5432/marketdata_db
       REDIS_URL: redis://redis:6379/0
-      ADAPTER_TYPE: ${ADAPTER_TYPE:-auto}
-      ALPHAVANTAGE_API_KEY: ${ALPHAVANTAGE_API_KEY:-}
-      TIINGO_API_KEY: ${TIINGO_API_KEY:-}
+      ADAPTER_TYPE: yahoo_finance
+      ALPHAVANTAGE_API_KEY: 692e82d3283fc9.87896037
+      TIINGO_API_KEY: 60e621f170f7b87aa9c396f818cbfa481e0ef1c8
       AUTH_SERVICE_URL: http://auth-service:8080
       SERVICE_NAME: marketdata-service
       SERVICE_VERSION: 0.1.0
