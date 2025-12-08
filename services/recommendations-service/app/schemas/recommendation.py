@@ -32,6 +32,11 @@ class RecommendationRead(BaseModel):
     is_active: str
     expires_at: Optional[datetime] = None
     created_at: datetime
+    # Price metadata
+    price_is_stale: Optional[bool] = False  # True if using stored price instead of fresh
+    price_age_hours: Optional[float] = None  # Age of price in hours
+    price_last_updated: Optional[datetime] = None  # When price was last updated
+    price_source: Optional[str] = None  # Source of price data: "yahoo_finance", "tiingo", "stored", etc.
     
     class Config:
         from_attributes = True

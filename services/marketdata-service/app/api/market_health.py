@@ -4,34 +4,42 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
 from datetime import datetime, timedelta
 from typing import List, Optional
+import logging
 from app.core.database import get_db
 from app.models.instrument import Instrument, PricePoint
 from app.schemas.market_data import MarketHealthResponse, IndexHealth, MarketCondition
 from app.core.adapters import MarketDataAdapter, InMemoryAdapter
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # Initialize adapter
 _adapter: Optional[MarketDataAdapter] = None
 
 def get_adapter() -> MarketDataAdapter:
-    """Get market data adapter"""
+    """Get market data adapter - NEVER uses InMemoryAdapter unless explicitly set for testing"""
     global _adapter
     if _adapter is None:
         from app.core.config import settings
         from app.core.adapters.yahoo_finance import YahooFinanceAdapter
         from app.core.adapters.tiingo import TiingoAdapter
         
-        # Prefer Tiingo if API key is available
-        if settings.tiingo_api_key and (settings.adapter_type == "tiingo" or settings.adapter_type == "auto"):
+        # Determine which adapter to use
+        # IMPORTANT: InMemoryAdapter is ONLY for explicit testing - never auto-selected
+        if settings.adapter_type == "in_memory":
+            logger.warning("⚠️  WARNING: Using InMemoryAdapter (synthetic/fake data). This should ONLY be used for testing!")
+            _adapter = InMemoryAdapter()
+        elif settings.adapter_type == "tiingo" and settings.tiingo_api_key:
             _adapter = TiingoAdapter(api_key=settings.tiingo_api_key)
             logger.info("Using Tiingo adapter for real market data")
-        elif settings.adapter_type == "yahoo_finance" or settings.adapter_type == "real":
+        elif settings.adapter_type == "yahoo_finance" or settings.adapter_type == "real" or settings.adapter_type == "auto":
+            # Use Yahoo Finance for real data (default for auto if no Tiingo key)
             _adapter = YahooFinanceAdapter()
             logger.info("Using Yahoo Finance adapter for real market data")
         else:
-            _adapter = InMemoryAdapter()
-            logger.info("Using InMemory adapter (synthetic data)")
+            # Default to Yahoo Finance for real market data
+            _adapter = YahooFinanceAdapter()
+            logger.info("Using Yahoo Finance adapter for real market data (default)")
     return _adapter
 
 
@@ -58,7 +66,7 @@ async def get_market_health(
         
         for idx in indices:
             try:
-                # Get latest price
+                # Try to get instrument from database first
                 result = await db.execute(
                     select(Instrument).where(
                         Instrument.ticker == idx["ticker"],
@@ -67,69 +75,101 @@ async def get_market_health(
                 )
                 instrument = result.scalar_one_or_none()
                 
-                if not instrument:
+                # If instrument doesn't exist, try to fetch from adapter
+                current_price = None
+                previous_price = None
+                volume = 0
+                
+                if instrument:
+                    # Get latest and previous day prices from database
+                    now = datetime.utcnow()
+                    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+                    yesterday_start = today_start - timedelta(days=1)
+                    
+                    # Latest price
+                    latest_result = await db.execute(
+                        select(PricePoint).where(
+                            PricePoint.instrument_id == instrument.id,
+                            PricePoint.timestamp >= today_start
+                        ).order_by(PricePoint.timestamp.desc()).limit(1)
+                    )
+                    latest = latest_result.scalar_one_or_none()
+                    
+                    # Previous close
+                    prev_result = await db.execute(
+                        select(PricePoint).where(
+                            PricePoint.instrument_id == instrument.id,
+                            PricePoint.timestamp < today_start,
+                            PricePoint.timestamp >= yesterday_start
+                        ).order_by(PricePoint.timestamp.desc()).limit(1)
+                    )
+                    prev_close = prev_result.scalar_one_or_none()
+                    
+                    if latest:
+                        current_price = latest.close
+                        volume = latest.volume or 0
+                    if prev_close:
+                        previous_price = prev_close.close
+                
+                # If no data in database, fetch from adapter
+                if current_price is None:
+                    try:
+                        latest_price = await adapter.get_latest_price(idx["ticker"], idx["exchange"])
+                        if latest_price:
+                            current_price = latest_price.close
+                            volume = latest_price.volume or 0
+                            # For previous price, we'll use the current price as fallback
+                            # (real implementation would fetch historical data)
+                            if previous_price is None:
+                                previous_price = current_price
+                    except Exception as adapter_error:
+                        logger.warning(f"Failed to fetch {idx['ticker']} from adapter: {adapter_error}")
+                        continue
+                
+                # Skip if we still don't have current price
+                if current_price is None or current_price <= 0:
+                    logger.warning(f"No valid price data for {idx['ticker']} on {idx['exchange']}")
                     continue
                 
-                # Get latest and previous day prices
-                now = datetime.utcnow()
-                today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-                yesterday_start = today_start - timedelta(days=1)
-                
-                # Latest price
-                latest_result = await db.execute(
-                    select(PricePoint).where(
-                        PricePoint.instrument_id == instrument.id,
-                        PricePoint.timestamp >= today_start
-                    ).order_by(PricePoint.timestamp.desc()).limit(1)
-                )
-                latest = latest_result.scalar_one_or_none()
-                
-                # Previous close
-                prev_result = await db.execute(
-                    select(PricePoint).where(
-                        PricePoint.instrument_id == instrument.id,
-                        PricePoint.timestamp < today_start,
-                        PricePoint.timestamp >= yesterday_start
-                    ).order_by(PricePoint.timestamp.desc()).limit(1)
-                )
-                prev_close = prev_result.scalar_one_or_none()
-                
-                if latest and prev_close:
-                    current_price = latest.close
-                    previous_price = prev_close.close
+                # Calculate change
+                if previous_price and previous_price > 0:
                     change = current_price - previous_price
-                    change_percent = (change / previous_price * 100) if previous_price > 0 else 0
-                    volume = latest.volume or 0
-                    
-                    # Determine trend
-                    if change_percent > 1:
-                        trend = "strong_bullish"
-                    elif change_percent > 0.3:
-                        trend = "bullish"
-                    elif change_percent > -0.3:
-                        trend = "neutral"
-                    elif change_percent > -1:
-                        trend = "bearish"
-                    else:
-                        trend = "strong_bearish"
-                    
-                    index_healths.append(IndexHealth(
-                        name=idx["name"],
-                        ticker=idx["ticker"],
-                        exchange=idx["exchange"],
-                        current_value=current_price,
-                        change=change,
-                        change_percent=change_percent,
-                        volume=volume,
-                        trend=trend
-                    ))
-                    
-                    total_change += change_percent
-                    total_volume += volume
-                    active_indices += 1
+                    change_percent = (change / previous_price * 100)
+                else:
+                    # No previous price available, assume no change
+                    change = 0
+                    change_percent = 0
+                
+                # Determine trend
+                if change_percent > 1:
+                    trend = "strong_bullish"
+                elif change_percent > 0.3:
+                    trend = "bullish"
+                elif change_percent > -0.3:
+                    trend = "neutral"
+                elif change_percent > -1:
+                    trend = "bearish"
+                else:
+                    trend = "strong_bearish"
+                
+                index_healths.append(IndexHealth(
+                    name=idx["name"],
+                    ticker=idx["ticker"],
+                    exchange=idx["exchange"],
+                    current_value=current_price,
+                    change=change,
+                    change_percent=change_percent,
+                    volume=volume,
+                    trend=trend
+                ))
+                
+                total_change += change_percent
+                total_volume += volume
+                active_indices += 1
                     
             except Exception as e:
                 # Skip this index if there's an error
+                logger.warning(f"Error processing index {idx.get('name', 'unknown')}: {e}", exc_info=True)
                 continue
         
         # Calculate overall market condition
@@ -184,6 +224,7 @@ async def get_market_health(
         )
         
     except Exception as e:
+        logger.error(f"Error calculating market health: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to calculate market health: {str(e)}"

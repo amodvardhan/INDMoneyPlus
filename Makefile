@@ -1,4 +1,4 @@
-.PHONY: help dev-up dev-down dev-logs migrate seed test lint build-images ci-run clean health-check
+.PHONY: help dev-up dev-down dev-logs migrate seed test lint build-images ci-run clean health-check flush-redis
 
 # Default target
 help:
@@ -16,6 +16,7 @@ help:
 	@echo "  make ci-run          - Run CI-like build and test locally"
 	@echo "  make clean           - Remove containers, volumes, and images"
 	@echo "  make health-check    - Check health of all services"
+	@echo "  make flush-redis     - Flush Redis price cache (use --all or --ticker/--exchange)"
 	@echo ""
 
 # Start development environment
@@ -119,4 +120,8 @@ health-check:
 	@./scripts/docker-wait-for.sh http://localhost:8088/health recommendations-service 10 || echo "❌ recommendations-service unhealthy"
 	@./scripts/docker-wait-for.sh http://localhost:8000/health api-gateway 10 || echo "❌ api-gateway unhealthy"
 	@echo "✅ Health check complete"
+
+# Flush Redis cache
+flush-redis:
+	@./scripts/flush_redis.sh $(ARGS)
 

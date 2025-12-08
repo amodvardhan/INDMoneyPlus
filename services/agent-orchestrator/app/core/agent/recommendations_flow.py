@@ -84,12 +84,12 @@ class RecommendationsFlow(BaseAgentFlow):
                         stock_analysis["change_percent"] = price_data.get("change_percent", 0)
                         stock_analysis["volume"] = price_data.get("volume", 0)
                     else:
-                        logger.warning(f"Invalid price data for {ticker}: {price_data}")
-                        # Skip this stock if we can't get real price
+                        logger.error(f"❌ Invalid or missing price data for {ticker}: {price_data}")
+                        # Skip this stock if we can't get real price - NO hardcoded prices
                         continue
                 except Exception as e:
-                    logger.warning(f"Failed to get real price for {ticker}: {e}")
-                    # Skip stocks without real price data - no hardcoded prices
+                    logger.error(f"❌ Failed to get real price for {ticker}: {e}")
+                    # Skip stocks without real price data - NO hardcoded prices, NO fallback
                     continue
                 
                 try:

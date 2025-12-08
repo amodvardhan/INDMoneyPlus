@@ -12,11 +12,13 @@ logger = logging.getLogger(__name__)
 
 
 class YahooFinanceAdapter(MarketDataAdapter):
-    """Adapter that fetches real prices from Yahoo Finance using yfinance library"""
+    """Adapter that fetches real prices from Yahoo Finance using yfinance library with optimized thread pool"""
     
     def __init__(self):
         # Use ThreadPoolExecutor to run yfinance (synchronous) in async context
-        self.executor = ThreadPoolExecutor(max_workers=5)
+        # Optimized pool size for better performance
+        self.executor = ThreadPoolExecutor(max_workers=10, thread_name_prefix="yfinance")
+        self._cache_timeout = 60  # Cache timeout in seconds for yfinance Ticker objects
     
     def _get_yahoo_symbol(self, ticker: str, exchange: str) -> str:
         """Convert ticker and exchange to Yahoo Finance symbol"""
@@ -43,8 +45,7 @@ class YahooFinanceAdapter(MarketDataAdapter):
             loop = asyncio.get_event_loop()
             ticker_obj = await loop.run_in_executor(self.executor, yf.Ticker, symbol)
             
-            # Get info and history
-            info = await loop.run_in_executor(self.executor, lambda: ticker_obj.info)
+            # Get history first (more reliable)
             hist = await loop.run_in_executor(
                 self.executor, 
                 lambda: ticker_obj.history(period="1d", interval="1d")
@@ -56,29 +57,56 @@ class YahooFinanceAdapter(MarketDataAdapter):
             
             # Get latest price from history
             latest_row = hist.iloc[-1]
+            history_close = float(latest_row["Close"])
             
-            # Try multiple price fields from info
-            current_price = (
-                info.get("regularMarketPrice") or 
-                info.get("currentPrice") or 
-                info.get("previousClose") or
-                float(latest_row["Close"])
-            )
-            current_price = float(current_price)
+            # Try to get info (may fail or be None)
+            info = None
+            try:
+                info = await loop.run_in_executor(self.executor, lambda: ticker_obj.info)
+            except Exception as e:
+                logger.debug(f"Could not fetch info for {symbol}: {e}")
+                info = {}
             
-            previous_close = float(
-                info.get("previousClose") or 
-                info.get("regularMarketPreviousClose") or 
-                latest_row["Close"]
-            )
+            # Try multiple price fields from info, prioritizing regularMarketPrice
+            # This is the most current price from Yahoo Finance
+            current_price = None
+            if info and isinstance(info, dict):
+                current_price = (
+                    info.get("regularMarketPrice") or 
+                    info.get("currentPrice") or 
+                    info.get("regularMarketPreviousClose") or
+                    info.get("previousClose")
+                )
+                if current_price:
+                    current_price = float(current_price)
+            
+            # Fall back to history close if info doesn't have price
+            if current_price is None or current_price <= 0:
+                current_price = history_close
+                logger.debug(f"Using history close price for {symbol}: {current_price}")
+            
+            # Get previous close
+            previous_close = None
+            if info and isinstance(info, dict):
+                previous_close = (
+                    info.get("previousClose") or 
+                    info.get("regularMarketPreviousClose")
+                )
+                if previous_close:
+                    previous_close = float(previous_close)
+            
+            # Fall back to history close if no previous close in info
+            if previous_close is None or previous_close <= 0:
+                previous_close = history_close
             
             # Log all price-related fields for debugging
             logger.info(f"Yahoo Finance data for {symbol}:")
-            logger.info(f"  regularMarketPrice: {info.get('regularMarketPrice')}")
-            logger.info(f"  currentPrice: {info.get('currentPrice')}")
-            logger.info(f"  previousClose: {info.get('previousClose')}")
-            logger.info(f"  history Close: {latest_row['Close']}")
-            logger.info(f"  currency: {info.get('currency', 'INR')}")
+            if info and isinstance(info, dict):
+                logger.info(f"  regularMarketPrice: {info.get('regularMarketPrice')}")
+                logger.info(f"  currentPrice: {info.get('currentPrice')}")
+                logger.info(f"  previousClose: {info.get('previousClose')}")
+                logger.info(f"  currency: {info.get('currency', 'INR')}")
+            logger.info(f"  history Close: {history_close}")
             logger.info(f"  Using price: {current_price}")
             
             # Calculate change percent
@@ -101,7 +129,8 @@ class YahooFinanceAdapter(MarketDataAdapter):
                 low=round(float(latest_row["Low"]), 2),
                 close=round(current_price, 2),
                 volume=int(latest_row["Volume"]) if not hist.empty else 0,
-                change_percent=round(change_percent, 2)
+                change_percent=round(change_percent, 2),
+                data_source="yahoo_finance"
             )
             
         except Exception as e:

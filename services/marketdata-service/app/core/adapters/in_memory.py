@@ -42,22 +42,26 @@ class InMemoryAdapter(MarketDataAdapter):
         return round(self._price_cache[key], 2)
     
     async def get_latest_price(self, ticker: str, exchange: str) -> Optional[LatestPriceResponse]:
-        """Get the latest price using synthetic data generation"""
-        price = self._get_current_price(ticker, exchange)
-        # Generate OHLC around the current price
-        variation = price * 0.01  # 1% variation
+        """
+        Get the latest price using synthetic data generation.
         
-        return LatestPriceResponse(
-            ticker=ticker.upper(),
-            exchange=exchange.upper(),
-            price=price,
-            timestamp=datetime.utcnow(),
-            open=round(price - random.uniform(0, variation), 2),
-            high=round(price + random.uniform(0, variation), 2),
-            low=round(price - random.uniform(0, variation), 2),
-            close=price,
-            volume=random.randint(1000, 1000000)
+        ⚠️  WARNING: This returns FAKE/SYNTHETIC data for testing only.
+        DO NOT use in production. Returns None to prevent accidental use.
+        """
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(
+            f"❌ InMemoryAdapter.get_latest_price called for {ticker} on {exchange}. "
+            f"This returns FAKE data and should NOT be used in production!"
         )
+        # Return None to prevent fake data from being used
+        # Only enable if explicitly needed for testing
+        return None
+        
+        # Original synthetic data generation (disabled):
+        # price = self._get_current_price(ticker, exchange)
+        # variation = price * 0.01
+        # return LatestPriceResponse(...)
     
     async def get_historical_prices(
         self,

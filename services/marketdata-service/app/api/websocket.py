@@ -17,23 +17,29 @@ _adapter: MarketDataAdapter = None
 
 
 def get_adapter() -> MarketDataAdapter:
-    """Get market data adapter"""
+    """Get market data adapter - NEVER uses InMemoryAdapter unless explicitly set for testing"""
     global _adapter
     if _adapter is None:
         from app.core.config import settings
         from app.core.adapters.yahoo_finance import YahooFinanceAdapter
         from app.core.adapters.tiingo import TiingoAdapter
         
-        # Prefer Tiingo if API key is available
-        if settings.tiingo_api_key and (settings.adapter_type == "tiingo" or settings.adapter_type == "auto"):
+        # Determine which adapter to use
+        # IMPORTANT: InMemoryAdapter is ONLY for explicit testing - never auto-selected
+        if settings.adapter_type == "in_memory":
+            logger.warning("⚠️  WARNING: Using InMemoryAdapter (synthetic/fake data). This should ONLY be used for testing!")
+            _adapter = InMemoryAdapter()
+        elif settings.adapter_type == "tiingo" and settings.tiingo_api_key:
             _adapter = TiingoAdapter(api_key=settings.tiingo_api_key)
             logger.info("Using Tiingo adapter for real market data")
-        elif settings.adapter_type == "yahoo_finance" or settings.adapter_type == "real":
+        elif settings.adapter_type == "yahoo_finance" or settings.adapter_type == "real" or settings.adapter_type == "auto":
+            # Use Yahoo Finance for real data (default for auto if no Tiingo key)
             _adapter = YahooFinanceAdapter()
             logger.info("Using Yahoo Finance adapter for real market data")
         else:
-            _adapter = InMemoryAdapter()
-            logger.info("Using InMemory adapter (synthetic data)")
+            # Default to Yahoo Finance for real market data
+            _adapter = YahooFinanceAdapter()
+            logger.info("Using Yahoo Finance adapter for real market data (default)")
     return _adapter
 
 

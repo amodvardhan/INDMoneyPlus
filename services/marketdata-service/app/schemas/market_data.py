@@ -91,6 +91,8 @@ class LatestPriceResponse(BaseModel):
     low: float
     close: float
     volume: Optional[int] = None
+    data_source: Optional[str] = None  # e.g., "yahoo_finance", "tiingo", "in_memory"
+    change_percent: Optional[float] = None  # Price change percentage
 
 
 class MarketCondition(str, Enum):

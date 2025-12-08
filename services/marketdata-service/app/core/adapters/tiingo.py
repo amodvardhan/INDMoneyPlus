@@ -1,6 +1,7 @@
 """Tiingo adapter for real market data"""
 import httpx
 import logging
+import asyncio
 from typing import List, Optional
 from datetime import datetime, timedelta
 from app.core.adapters.base import MarketDataAdapter
@@ -10,16 +11,37 @@ logger = logging.getLogger(__name__)
 
 
 class TiingoAdapter(MarketDataAdapter):
-    """Adapter that fetches real prices from Tiingo API"""
+    """Adapter that fetches real prices from Tiingo API with connection pooling"""
     
     def __init__(self, api_key: str):
         self.api_key = api_key
         self.base_url = "https://api.tiingo.com"
-        self.timeout = 10.0
+        self.timeout = 15.0  # Increased timeout for reliability
         self.headers = {
             "Authorization": f"Token {api_key}",
             "Content-Type": "application/json"
         }
+        # Create persistent HTTP client with connection pooling
+        self._client: Optional[httpx.AsyncClient] = None
+        self._client_lock = False  # Simple flag for client initialization
+    
+    async def _get_client(self) -> httpx.AsyncClient:
+        """Get or create persistent HTTP client with connection pooling"""
+        if self._client is None:
+            limits = httpx.Limits(max_keepalive_connections=10, max_connections=20)
+            self._client = httpx.AsyncClient(
+                timeout=self.timeout,
+                headers=self.headers,
+                limits=limits,
+                http2=True  # Enable HTTP/2 for better performance
+            )
+        return self._client
+    
+    async def close(self):
+        """Close HTTP client connection"""
+        if self._client:
+            await self._client.aclose()
+            self._client = None
     
     def _get_tiingo_ticker(self, ticker: str, exchange: str) -> str:
         """Convert ticker and exchange to Tiingo format"""
@@ -36,28 +58,48 @@ class TiingoAdapter(MarketDataAdapter):
             return ticker_upper
     
     async def get_latest_price(self, ticker: str, exchange: str) -> Optional[LatestPriceResponse]:
-        """Get latest price from Tiingo API"""
+        """Get latest price from Tiingo API with retry logic"""
         symbol = self._get_tiingo_ticker(ticker, exchange)
+        max_retries = 2
         
         try:
+            client = await self._get_client()
+            
             # Tiingo daily prices endpoint (returns latest price)
             url = f"{self.base_url}/tiingo/daily/{symbol}/prices"
             params = {
                 "token": self.api_key
             }
             
-            async with httpx.AsyncClient(timeout=self.timeout, headers=self.headers) as client:
-                response = await client.get(url, params=params)
-                
-                if response.status_code == 404:
-                    # Try without exchange prefix for NSE/BSE
-                    if exchange.upper() in ["NSE", "BSE"]:
-                        symbol_alt = ticker.upper()
-                        url_alt = f"{self.base_url}/tiingo/daily/{symbol_alt}/prices"
-                        response = await client.get(url_alt, params=params)
-                
-                response.raise_for_status()
-                data = response.json()
+            for attempt in range(max_retries + 1):
+                try:
+                    response = await client.get(url, params=params)
+                    
+                    if response.status_code == 404:
+                        # Try without exchange prefix for NSE/BSE
+                        if exchange.upper() in ["NSE", "BSE"]:
+                            symbol_alt = ticker.upper()
+                            url_alt = f"{self.base_url}/tiingo/daily/{symbol_alt}/prices"
+                            response = await client.get(url_alt, params=params)
+                    
+                    response.raise_for_status()
+                    data = response.json()
+                    break  # Success, exit retry loop
+                    
+                except httpx.HTTPStatusError as e:
+                    if e.response.status_code == 429:  # Rate limit
+                        if attempt < max_retries:
+                            wait_time = 2 ** attempt  # Exponential backoff
+                            logger.warning(f"Rate limited, retrying in {wait_time}s...")
+                            await asyncio.sleep(wait_time)
+                            continue
+                    raise
+                except httpx.TimeoutException:
+                    if attempt < max_retries:
+                        logger.warning(f"Timeout, retrying... (attempt {attempt + 1}/{max_retries + 1})")
+                        await asyncio.sleep(1)
+                        continue
+                    raise
             
             if not data or len(data) == 0:
                 logger.warning(f"No data from Tiingo for {symbol}")
@@ -94,7 +136,8 @@ class TiingoAdapter(MarketDataAdapter):
                 low=round(float(latest.get("low", current_price)), 2),
                 close=round(current_price, 2),
                 volume=int(latest.get("volume", 0)),
-                change_percent=round(change_percent, 2)
+                change_percent=round(change_percent, 2),
+                data_source="tiingo"
             )
             
         except httpx.HTTPError as e:
@@ -111,8 +154,9 @@ class TiingoAdapter(MarketDataAdapter):
         from_date: datetime,
         to_date: datetime
     ) -> List[PricePointRead]:
-        """Get historical prices from Tiingo API"""
+        """Get historical prices from Tiingo API with retry logic"""
         symbol = self._get_tiingo_ticker(ticker, exchange)
+        max_retries = 2
         
         try:
             # Format dates for Tiingo (YYYY-MM-DD)
@@ -126,18 +170,38 @@ class TiingoAdapter(MarketDataAdapter):
                 "token": self.api_key
             }
             
-            async with httpx.AsyncClient(timeout=self.timeout, headers=self.headers) as client:
-                response = await client.get(url, params=params)
-                
-                if response.status_code == 404:
-                    # Try without exchange prefix for NSE/BSE
-                    if exchange.upper() in ["NSE", "BSE"]:
-                        symbol_alt = ticker.upper()
-                        url_alt = f"{self.base_url}/tiingo/daily/{symbol_alt}/prices"
-                        response = await client.get(url_alt, params=params)
-                
-                response.raise_for_status()
-                data = response.json()
+            client = await self._get_client()
+            data = None
+            
+            for attempt in range(max_retries + 1):
+                try:
+                    response = await client.get(url, params=params)
+                    
+                    if response.status_code == 404:
+                        # Try without exchange prefix for NSE/BSE
+                        if exchange.upper() in ["NSE", "BSE"]:
+                            symbol_alt = ticker.upper()
+                            url_alt = f"{self.base_url}/tiingo/daily/{symbol_alt}/prices"
+                            response = await client.get(url_alt, params=params)
+                    
+                    response.raise_for_status()
+                    data = response.json()
+                    break  # Success, exit retry loop
+                    
+                except httpx.HTTPStatusError as e:
+                    if e.response.status_code == 429:  # Rate limit
+                        if attempt < max_retries:
+                            wait_time = 2 ** attempt  # Exponential backoff
+                            logger.warning(f"Rate limited, retrying in {wait_time}s...")
+                            await asyncio.sleep(wait_time)
+                            continue
+                    raise
+                except httpx.TimeoutException:
+                    if attempt < max_retries:
+                        logger.warning(f"Timeout, retrying... (attempt {attempt + 1}/{max_retries + 1})")
+                        await asyncio.sleep(1)
+                        continue
+                    raise
             
             if not data:
                 return []
@@ -186,10 +250,10 @@ class TiingoAdapter(MarketDataAdapter):
                 "token": self.api_key
             }
             
-            async with httpx.AsyncClient(timeout=self.timeout, headers=self.headers) as client:
-                response = await client.get(url, params=params)
-                response.raise_for_status()
-                data = response.json()
+            client = await self._get_client()
+            response = await client.get(url, params=params)
+            response.raise_for_status()
+            data = response.json()
             
             return data if isinstance(data, list) else []
             

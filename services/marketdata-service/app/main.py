@@ -7,6 +7,7 @@ from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_
 from starlette.responses import Response
 from app.core.config import settings
 from app.core.database import engine
+from app.core.cache import close_redis
 from app.models.instrument import Base
 from app.core.adapters import InMemoryAdapter
 from app.api import prices, instruments, corporate_actions, websocket, market_health
@@ -32,6 +33,9 @@ async def lifespan(app: FastAPI):
         await conn.run_sync(Base.metadata.create_all)
     
     yield
+    
+    # Shutdown: Close Redis connections
+    await close_redis()
 
 
 app = FastAPI(
