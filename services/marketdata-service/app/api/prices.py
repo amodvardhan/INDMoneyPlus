@@ -93,25 +93,98 @@ async def get_price_timeseries(
     )
     price_points = result.scalars().all()
     
-    # If no data in database, fetch from adapter
+    # Check if database has complete data for the requested range
+    # We'll fetch from adapter if:
+    # 1. No data in database, OR
+    # 2. Database data doesn't cover the full range (missing start or end dates)
+    should_fetch_from_adapter = False
+    
     if not price_points:
-        adapter_prices = await adapter.get_historical_prices(
-            ticker, exchange, from_date, to_date
+        should_fetch_from_adapter = True
+        logger.info(f"📊 No database data for {ticker} on {exchange} in range {from_date.date()} to {to_date.date()}. Fetching from adapter.")
+    else:
+        # Check if database data covers the full range
+        db_dates = sorted([p.timestamp for p in price_points])
+        db_start = db_dates[0] if db_dates else None
+        db_end = db_dates[-1] if db_dates else None
+        
+        # Calculate date range tolerance (allow 1 day difference for market holidays/weekends)
+        days_diff = (to_date - from_date).days
+        tolerance_days = max(1, int(days_diff * 0.05))  # 5% tolerance or at least 1 day
+        
+        # Check if database data covers the requested range
+        if db_start and db_end:
+            start_diff = abs((db_start - from_date).days)
+            end_diff = abs((to_date - db_end).days)
+            
+            # If database doesn't cover start or end, or has significant gaps, fetch from adapter
+            if start_diff > tolerance_days or end_diff > tolerance_days:
+                should_fetch_from_adapter = True
+                logger.info(
+                    f"📊 Database data for {ticker} on {exchange} doesn't cover full range. "
+                    f"DB: {db_start.date()} to {db_end.date()}, Requested: {from_date.date()} to {to_date.date()}. "
+                    f"Fetching from adapter."
+                )
+            else:
+                logger.info(
+                    f"✅ Using database data for {ticker} on {exchange}: "
+                    f"{len(price_points)} points from {db_start.date()} to {db_end.date()}"
+                )
+        else:
+            should_fetch_from_adapter = True
+    
+    # Fetch from adapter if needed
+    if should_fetch_from_adapter:
+        logger.info(
+            f"🔍 Fetching historical prices from adapter for {ticker} on {exchange} "
+            f"from {from_date.date()} to {to_date.date()} using {adapter.__class__.__name__}"
         )
-        # Convert to PricePointRead with instrument_id
-        price_points = [
-            PricePointRead(
-                id=0,
-                instrument_id=instrument.id,
-                timestamp=p.timestamp,
-                open=p.open,
-                high=p.high,
-                low=p.low,
-                close=p.close,
-                volume=p.volume
+        try:
+            adapter_prices = await adapter.get_historical_prices(
+                ticker, exchange, from_date, to_date
             )
-            for p in adapter_prices
-        ]
+            
+            if not adapter_prices:
+                logger.warning(
+                    f"⚠️  Adapter returned empty data for {ticker} on {exchange}. "
+                    f"Date range: {from_date.date()} to {to_date.date()}. "
+                    f"Adapter: {adapter.__class__.__name__}"
+                )
+                # Return empty response instead of failing
+                return PriceTimeseriesResponse(
+                    ticker=instrument.ticker,
+                    exchange=instrument.exchange,
+                    data=[],
+                    count=0
+                )
+            
+            # Convert to PricePointRead with instrument_id
+            price_points = [
+                PricePointRead(
+                    id=0,
+                    instrument_id=instrument.id,
+                    timestamp=p.timestamp,
+                    open=p.open,
+                    high=p.high,
+                    low=p.low,
+                    close=p.close,
+                    volume=p.volume
+                )
+                for p in adapter_prices
+            ]
+            logger.info(f"✅ Fetched {len(price_points)} price points from adapter for {ticker} on {exchange}")
+        except Exception as e:
+            logger.error(
+                f"❌ Error fetching historical prices from adapter for {ticker} on {exchange}: {e}",
+                exc_info=True
+            )
+            # Return empty response instead of failing
+            return PriceTimeseriesResponse(
+                ticker=instrument.ticker,
+                exchange=instrument.exchange,
+                data=[],
+                count=0
+            )
     else:
         # Convert database models to schemas
         price_points = [

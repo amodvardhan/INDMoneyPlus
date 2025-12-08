@@ -147,6 +147,7 @@ class YahooFinanceAdapter(MarketDataAdapter):
         """Get historical prices from Yahoo Finance using yfinance library"""
         try:
             symbol = self._get_yahoo_symbol(ticker, exchange)
+            logger.info(f"📊 Fetching historical prices for {symbol} (ticker: {ticker}, exchange: {exchange}) from {from_date.date()} to {to_date.date()}")
             
             # Calculate period for yfinance
             days_diff = (to_date - from_date).days
@@ -163,6 +164,8 @@ class YahooFinanceAdapter(MarketDataAdapter):
             else:
                 period = "2y"
             
+            logger.info(f"📅 Using yfinance period: {period} for {days_diff} days difference")
+            
             # Run yfinance in thread pool
             loop = asyncio.get_event_loop()
             ticker_obj = await loop.run_in_executor(self.executor, yf.Ticker, symbol)
@@ -172,12 +175,36 @@ class YahooFinanceAdapter(MarketDataAdapter):
             )
             
             if hist.empty:
+                logger.warning(f"⚠️  Empty history returned from yfinance for {symbol}. Period: {period}")
                 return []
+            
+            logger.info(f"📈 Received {len(hist)} rows from yfinance for {symbol}")
+            
+            # Get actual date range from yfinance data
+            if len(hist) > 0:
+                actual_start = hist.index[0].to_pydatetime() if hasattr(hist.index[0], 'to_pydatetime') else None
+                actual_end = hist.index[-1].to_pydatetime() if hasattr(hist.index[-1], 'to_pydatetime') else None
+                logger.info(
+                    f"📅 yfinance data range: {actual_start.date() if actual_start else 'N/A'} to {actual_end.date() if actual_end else 'N/A'}, "
+                    f"Requested: {from_date.date()} to {to_date.date()}"
+                )
             
             price_points = []
             for idx, row in hist.iterrows():
                 dt = idx.to_pydatetime() if hasattr(idx, 'to_pydatetime') else datetime.utcnow()
-                if dt < from_date or dt > to_date:
+                # Normalize dates to midnight for comparison (ignore time component)
+                dt_date = dt.date()
+                from_date_only = from_date.date()
+                to_date_only = to_date.date()
+                
+                # For long periods (1y+), be more lenient with date filtering
+                # Include data that's close to the requested range (within 7 days)
+                days_before = (from_date_only - dt_date).days if dt_date < from_date_only else 0
+                days_after = (dt_date - to_date_only).days if dt_date > to_date_only else 0
+                
+                # Allow 7 days tolerance for market holidays and weekends
+                tolerance_days = 7
+                if days_before > tolerance_days or days_after > tolerance_days:
                     continue
                 
                 price_points.append(PricePointRead(
@@ -191,10 +218,38 @@ class YahooFinanceAdapter(MarketDataAdapter):
                     volume=int(row["Volume"]) if "Volume" in row else 0
                 ))
             
+            logger.info(f"✅ Filtered to {len(price_points)} price points within date range {from_date.date()} to {to_date.date()}")
+            
+            if len(price_points) == 0:
+                logger.warning(
+                    f"⚠️  No price points after filtering for {symbol}. "
+                    f"History range: {hist.index[0].date() if len(hist) > 0 and hasattr(hist.index[0], 'date') else 'N/A'} to "
+                    f"{hist.index[-1].date() if len(hist) > 0 and hasattr(hist.index[-1], 'date') else 'N/A'}, "
+                    f"Requested range: {from_date.date()} to {to_date.date()}. "
+                    f"Total rows from yfinance: {len(hist)}"
+                )
+                # If we have data from yfinance but filtered everything out, return all data anyway
+                # This handles cases where date ranges don't match exactly
+                if len(hist) > 0:
+                    logger.info(f"🔄 Returning all {len(hist)} rows from yfinance despite date mismatch")
+                    price_points = []
+                    for idx, row in hist.iterrows():
+                        dt = idx.to_pydatetime() if hasattr(idx, 'to_pydatetime') else datetime.utcnow()
+                        price_points.append(PricePointRead(
+                            id=0,
+                            instrument_id=0,
+                            timestamp=dt,
+                            open=round(float(row["Open"]), 2),
+                            high=round(float(row["High"]), 2),
+                            low=round(float(row["Low"]), 2),
+                            close=round(float(row["Close"]), 2),
+                            volume=int(row["Volume"]) if "Volume" in row else 0
+                        ))
+            
             return price_points
             
         except Exception as e:
-            logger.error(f"Error fetching historical prices for {ticker} from Yahoo Finance: {e}", exc_info=True)
+            logger.error(f"❌ Error fetching historical prices for {ticker} ({exchange}) from Yahoo Finance: {e}", exc_info=True)
             return []
     
     async def search_instruments(self, query: str) -> List[dict]:

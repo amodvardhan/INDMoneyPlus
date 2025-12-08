@@ -20,9 +20,15 @@ export function usePriceTimeseries(
 ) {
   return useQuery({
     queryKey: ['price', ticker, exchange, 'timeseries', fromDate, toDate],
-    queryFn: () => apiClient.getPriceTimeseries(ticker!, exchange!, fromDate, toDate),
-    enabled: !!ticker && !!exchange,
-    staleTime: 60000, // 1 minute
+    queryFn: () => {
+      console.log('🔄 Fetching price timeseries:', { ticker, exchange, fromDate, toDate })
+      return apiClient.getPriceTimeseries(ticker!, exchange!, fromDate, toDate)
+    },
+    enabled: !!ticker && !!exchange && !!fromDate && !!toDate,
+    staleTime: 0, // Always refetch when period changes
+    gcTime: 300000, // Keep in cache for 5 minutes
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
   })
 }
 

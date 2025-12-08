@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/hooks/useAuth'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -102,7 +102,14 @@ export default function RecommendationDetailPage({
     }
   }
 
-  const dateRange = getDateRange(selectedPeriod)
+  // Memoize date range to ensure stable reference and proper date formatting
+  const dateRange = useMemo(() => {
+    const range = getDateRange(selectedPeriod)
+    // Debug log to verify date calculation
+    console.log('📅 Period changed:', selectedPeriod, '→ Date range:', range)
+    return range
+  }, [selectedPeriod])
+
   const { data: timeseries, isLoading: timeseriesLoading } = usePriceTimeseries(
     params.ticker,
     exchange,
