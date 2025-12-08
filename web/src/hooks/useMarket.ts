@@ -29,8 +29,9 @@ export function useTopRecommendations(limit?: number, type?: string) {
   return useQuery({
     queryKey: ['top-recommendations', limit, type],
     queryFn: () => apiClient.getTopRecommendations(limit, type),
-    refetchInterval: 300000, // Refetch every 5 minutes
-    staleTime: 60000, // Consider data stale after 1 minute
+    refetchInterval: 10000, // Refetch every 10 seconds for real-time price updates
+    staleTime: 5000, // Consider data stale after 5 seconds
+    gcTime: 60000, // Keep in cache for 1 minute
   })
 }
 

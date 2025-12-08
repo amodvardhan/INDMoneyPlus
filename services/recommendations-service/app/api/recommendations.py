@@ -22,6 +22,20 @@ from app.core.cache import (
     invalidate_recommendations_cache
 )
 
+# Global HTTP client with connection pooling for better performance
+_http_client: Optional[httpx.AsyncClient] = None
+
+def get_http_client() -> httpx.AsyncClient:
+    """Get or create a shared HTTP client with connection pooling"""
+    global _http_client
+    if _http_client is None:
+        _http_client = httpx.AsyncClient(
+            timeout=httpx.Timeout(5.0, connect=3.0),  # Reduced timeout: 5s total, 3s connect
+            limits=httpx.Limits(max_keepalive_connections=20, max_connections=100)
+            # Note: HTTP/2 disabled - requires 'h2' package. Connection pooling still provides performance benefits.
+        )
+    return _http_client
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
@@ -170,80 +184,80 @@ async def _fetch_fresh_price(ticker: str, exchange: str, retry_count: int = 0) -
     Never returns stale or fake data.
     """
     url = f"{settings.marketdata_service_url}/api/v1/price/{ticker}/latest"
-    max_retries = 2
-    timeout = 15.0  # Increased timeout
+    max_retries = 1  # Reduced retries for faster failure
+    timeout = 5.0  # Reduced timeout from 15s to 5s for faster responses
     
-    logger.info(f"🔍 Fetching fresh price for {ticker} on {exchange} from: {url} (attempt {retry_count + 1}/{max_retries + 1})")
+    logger.debug(f"🔍 Fetching fresh price for {ticker} on {exchange} (attempt {retry_count + 1}/{max_retries + 1})")
     
     try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            # CRITICAL: Always use force_refresh=true to get fresh prices from adapter, not cached/stored prices
-            response = await client.get(
-                url,
-                params={"exchange": exchange, "force_refresh": "true"},
-                follow_redirects=True
+        client = get_http_client()
+        # CRITICAL: Always use force_refresh=true to get fresh prices from adapter, not cached/stored prices
+        response = await client.get(
+            url,
+            params={"exchange": exchange, "force_refresh": "true"},
+            follow_redirects=True
+        )
+        
+        logger.debug(f"📊 Price fetch response for {ticker}: status={response.status_code}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            logger.debug(f"📦 Full response data for {ticker}: {data}")
+            
+            price = data.get("price")
+            
+            # Validate price is valid
+            if price is None:
+                logger.error(f"❌ No price field in response for {ticker} on {exchange}. Response: {data}")
+                return None
+            
+            try:
+                price = float(price)
+            except (ValueError, TypeError):
+                logger.error(f"❌ Invalid price type for {ticker} on {exchange}: {price} (type: {type(price)})")
+                return None
+            
+            if price <= 0:
+                logger.error(f"❌ Invalid price value for {ticker} on {exchange}: {price} (must be > 0)")
+                return None
+            
+            # Get data source from response - CRITICAL for showing source to user
+            data_source = data.get("data_source")
+            if not data_source or data_source == "unknown" or data_source == "":
+                # Fallback: try to infer from response structure
+                logger.warning(
+                    f"⚠️  No data_source in response for {ticker} on {exchange}. "
+                    f"Response keys: {list(data.keys())}. Using fallback."
+                )
+                data_source = "market_data_service"  # Generic fallback
+            
+            logger.debug(
+                f"✅ Successfully fetched fresh price for {ticker} on {exchange}: "
+                f"₹{price} from {data_source}"
             )
+            return (price, data_source)
             
-            logger.info(f"📊 Price fetch response for {ticker}: status={response.status_code}")
-            
-            if response.status_code == 200:
-                data = response.json()
-                logger.debug(f"📦 Full response data for {ticker}: {data}")
-                
-                price = data.get("price")
-                
-                # Validate price is valid
-                if price is None:
-                    logger.error(f"❌ No price field in response for {ticker} on {exchange}. Response: {data}")
-                    return None
-                
-                try:
-                    price = float(price)
-                except (ValueError, TypeError):
-                    logger.error(f"❌ Invalid price type for {ticker} on {exchange}: {price} (type: {type(price)})")
-                    return None
-                
-                if price <= 0:
-                    logger.error(f"❌ Invalid price value for {ticker} on {exchange}: {price} (must be > 0)")
-                    return None
-                
-                # Get data source from response - CRITICAL for showing source to user
-                data_source = data.get("data_source")
-                if not data_source or data_source == "unknown" or data_source == "":
-                    # Fallback: try to infer from response structure
-                    logger.warning(
-                        f"⚠️  No data_source in response for {ticker} on {exchange}. "
-                        f"Response keys: {list(data.keys())}. Using fallback."
-                    )
-                    data_source = "market_data_service"  # Generic fallback
-                
-                logger.info(
-                    f"✅ Successfully fetched fresh price for {ticker} on {exchange}: "
-                    f"₹{price} from {data_source} (response had data_source: {data.get('data_source')})"
-                )
-                return (price, data_source)
-                
-            elif response.status_code == 503:
-                # Service unavailable - don't use fake data
-                try:
-                    error_detail = response.json().get("detail", response.text)
-                except:
-                    error_detail = response.text if hasattr(response, 'text') else "Service unavailable"
-                logger.error(
-                    f"❌ Market data service unavailable for {ticker} on {exchange}: {error_detail}. "
-                    f"URL: {url}"
-                )
-                return None
-            else:
-                try:
-                    error_detail = response.json().get("detail", response.text)
-                except:
-                    error_detail = response.text if hasattr(response, 'text') else ""
-                logger.error(
-                    f"❌ Failed to fetch price for {ticker} on {exchange}: "
-                    f"HTTP {response.status_code} - {error_detail}. URL: {url}"
-                )
-                return None
+        elif response.status_code == 503:
+            # Service unavailable - don't use fake data
+            try:
+                error_detail = response.json().get("detail", response.text)
+            except:
+                error_detail = response.text if hasattr(response, 'text') else "Service unavailable"
+            logger.error(
+                f"❌ Market data service unavailable for {ticker} on {exchange}: {error_detail}. "
+                f"URL: {url}"
+            )
+            return None
+        else:
+            try:
+                error_detail = response.json().get("detail", response.text)
+            except:
+                error_detail = response.text if hasattr(response, 'text') else ""
+            logger.error(
+                f"❌ Failed to fetch price for {ticker} on {exchange}: "
+                f"HTTP {response.status_code} - {error_detail}. URL: {url}"
+            )
+            return None
     except httpx.TimeoutException as e:
         error_msg = f"❌ Timeout fetching price for {ticker} on {exchange}: {e}"
         logger.error(error_msg)
@@ -290,18 +304,41 @@ async def _fetch_fresh_prices_batch(
     ticker_exchange_pairs: List[tuple]
 ) -> Dict[tuple, tuple]:
     """
-    Fetch fresh prices for multiple tickers in parallel
+    Fetch fresh prices for multiple tickers in parallel with optimized batching
     Returns: Dict mapping (ticker, exchange) -> (price: float, source: str)
     """
     if not ticker_exchange_pairs:
         return {}
     
-    logger.info(f"🔄 Fetching fresh prices for {len(ticker_exchange_pairs)} tickers in parallel")
+    logger.info(f"🔄 Fetching fresh prices for {len(ticker_exchange_pairs)} tickers in parallel (optimized)")
+    
+    # Use shared HTTP client for connection pooling
+    client = get_http_client()
+    base_url = f"{settings.marketdata_service_url}/api/v1/price"
     
     async def fetch_one(ticker: str, exchange: str) -> tuple:
-        result = await _fetch_fresh_price(ticker, exchange)
-        return ((ticker, exchange), result)
+        """Optimized single price fetch using shared client"""
+        url = f"{base_url}/{ticker}/latest"
+        try:
+            response = await client.get(
+                url,
+                params={"exchange": exchange, "force_refresh": "true"},
+                timeout=5.0
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                price = data.get("price")
+                if price and isinstance(price, (int, float)) and price > 0:
+                    data_source = data.get("data_source", "market_data_service")
+                    return ((ticker, exchange), (float(price), data_source))
+            
+            return ((ticker, exchange), None)
+        except Exception as e:
+            logger.debug(f"Price fetch error for {ticker}: {e}")
+            return ((ticker, exchange), None)
     
+    # Fetch all prices in parallel with optimized concurrency
     tasks = [fetch_one(ticker, exchange) for ticker, exchange in ticker_exchange_pairs]
     results = await asyncio.gather(*tasks, return_exceptions=True)
     
@@ -588,9 +625,22 @@ async def _get_existing_recommendations(
     sell_recommendations = sell_result.scalars().all()
     logger.info(f"📊 Found {len(sell_recommendations)} sell recommendations")
     
-    # Load source relationships
-    for rec in buy_recommendations + sell_recommendations:
-        await db.refresh(rec, ["source"])
+    # Batch refresh source relationships to minimize database queries
+    # This is more efficient than individual refreshes
+    all_recommendations = buy_recommendations + sell_recommendations
+    if all_recommendations:
+        # Refresh all sources in one batch
+        source_ids = {rec.source_id for rec in all_recommendations if rec.source_id}
+        if source_ids:
+            from app.models.recommendation import RecommendationSource
+            sources_result = await db.execute(
+                select(RecommendationSource).where(RecommendationSource.id.in_(source_ids))
+            )
+            sources_map = {s.id: s for s in sources_result.scalars().all()}
+            # Attach sources to recommendations
+            for rec in all_recommendations:
+                if rec.source_id and rec.source_id in sources_map:
+                    rec.source = sources_map[rec.source_id]
     
     # Update with fresh prices (with error handling)
     try:
