@@ -143,21 +143,60 @@ export default function RecommendationDetailPage({
   // Fetch news
   useEffect(() => {
     const fetchNews = async () => {
+      if (!params.ticker || !exchange) {
+        console.warn('⚠️ Cannot fetch news: missing ticker or exchange', { ticker: params.ticker, exchange })
+        return
+      }
+
+      console.log(`📰 Starting news fetch for ${params.ticker} on ${exchange}...`)
       setNewsLoading(true)
+      setNews(null) // Reset news state
+
       try {
+        const apiUrl = `/api/v1/news/${params.ticker}?exchange=${exchange}&limit=10`
+        console.log(`📡 Making API call to: ${apiUrl}`)
+
         const data = await apiClient.getStockNews(params.ticker, exchange, 10)
+
+        console.log(`✅ News API response:`, {
+          ticker: data.ticker,
+          exchange: data.exchange,
+          count: data.count,
+          articlesCount: data.articles?.length || 0,
+          hasError: !!data.error
+        })
+
+        if (data.error) {
+          console.warn('⚠️ News API returned error:', data.error)
+        }
+
         setNews(data)
-      } catch (error) {
-        console.error('Failed to fetch news:', error)
-        // Don't show error to user, just don't display news
+      } catch (error: any) {
+        console.error('❌ Failed to fetch news:', error)
+        console.error('Error details:', {
+          message: error?.message,
+          response: error?.response?.data,
+          status: error?.response?.status,
+          statusText: error?.response?.statusText,
+          url: error?.config?.url || error?.request?.responseURL,
+          config: error?.config
+        })
+
+        // Set empty news object so UI shows "no news" instead of loading forever
+        setNews({
+          ticker: params.ticker,
+          exchange,
+          articles: [],
+          count: 0,
+          error: error?.response?.data?.detail || error?.message || 'Failed to fetch news'
+        })
       } finally {
         setNewsLoading(false)
+        console.log('🏁 News fetch completed')
       }
     }
 
-    if (params.ticker && exchange) {
-      fetchNews()
-    }
+    fetchNews()
   }, [params.ticker, exchange])
 
   useEffect(() => {
@@ -511,79 +550,152 @@ export default function RecommendationDetailPage({
         </motion.div>
       )}
 
-      {/* News Section */}
+      {/* News Section - Modern Design */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
         className="mb-6"
       >
-        <Card className="border-2 shadow-xl">
-          <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border-b-2">
-            <CardTitle className="text-xl flex items-center gap-2">
-              <Newspaper className="h-5 w-5 text-purple-600" />
-              Latest News
-            </CardTitle>
+        <Card className="border-2 border-gray-200 dark:border-gray-800 shadow-2xl bg-gradient-to-br from-white via-gray-50/50 to-white dark:from-gray-900 dark:via-gray-900/50 dark:to-gray-900 overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white p-6">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-2xl font-bold flex items-center gap-3">
+                <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                  <Newspaper className="h-6 w-6" />
+                </div>
+                Latest News & Updates
+              </CardTitle>
+              {news && news.count > 0 && (
+                <Badge variant="secondary" className="bg-white/20 text-white border-white/30 backdrop-blur-sm">
+                  {news.count} articles
+                </Badge>
+              )}
+            </div>
           </CardHeader>
-          <CardContent className="pt-6">
+          <CardContent className="p-6">
             {newsLoading ? (
               <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-24 w-full" />
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="flex gap-4">
+                    <Skeleton className="h-20 w-20 rounded-lg flex-shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-5 w-full" />
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-3 w-1/2" />
+                    </div>
+                  </div>
                 ))}
               </div>
-            ) : news && news.articles && news.articles.length > 0 ? (
-              <div className="space-y-4">
-                {news.articles.map((article: NewsArticle, index: number) => (
-                  <motion.div
-                    key={index}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.1 * index }}
-                    className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <a
-                          href={article.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-lg font-semibold text-gray-900 dark:text-gray-100 hover:text-primary-600 dark:hover:text-primary-400 transition-colors line-clamp-2"
-                        >
-                          {article.title}
-                        </a>
-                        {article.snippet && (
-                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 line-clamp-2">
-                            {article.snippet}
-                          </p>
-                        )}
-                        <div className="flex items-center gap-4 mt-3 text-xs text-gray-500 dark:text-gray-500">
-                          <span className="flex items-center gap-1">
-                            <Newspaper className="h-3 w-3" />
-                            {article.source}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3" />
-                            {formatDate(article.published_at, 'relative')}
-                          </span>
+            ) : news && Array.isArray(news.articles) && news.articles.length > 0 ? (
+              <div className="space-y-3">
+                {news.articles
+                  .filter((article: NewsArticle) => article.title && article.title.trim() && article.url && article.url.trim())
+                  .map((article: NewsArticle, index: number) => (
+                    <motion.a
+                      key={index}
+                      href={article.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.05 * index }}
+                      className="group block p-5 bg-white dark:bg-gray-800/50 border-2 border-gray-200 dark:border-gray-700 rounded-xl hover:border-indigo-400 dark:hover:border-indigo-600 hover:shadow-lg transition-all duration-300 cursor-pointer"
+                    >
+                      <div className="flex gap-4">
+                        {/* Icon/Image Placeholder */}
+                        <div className="flex-shrink-0 w-16 h-16 rounded-lg bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
+                          <Newspaper className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-lg font-bold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors line-clamp-2 mb-2">
+                            {article.title}
+                          </h3>
+
+                          {article.snippet && article.snippet.trim() && (
+                            <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-3">
+                              {article.snippet}
+                            </p>
+                          )}
+
+                          {/* Metadata */}
+                          <div className="flex items-center gap-4 flex-wrap">
+                            <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                              <div className="p-1 bg-gray-100 dark:bg-gray-700 rounded">
+                                <Globe className="h-3 w-3" />
+                              </div>
+                              <span className="font-medium">{article.source}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                              <div className="p-1 bg-gray-100 dark:bg-gray-700 rounded">
+                                <Calendar className="h-3 w-3" />
+                              </div>
+                              <span>{formatDate(article.published_at, 'relative')}</span>
+                            </div>
+                            <div className="ml-auto flex items-center gap-1 text-xs text-indigo-600 dark:text-indigo-400 font-semibold group-hover:gap-2 transition-all">
+                              <span>Read more</span>
+                              <ExternalLink className="h-3.5 w-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                            </div>
+                          </div>
                         </div>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => window.open(article.url, '_blank')}
-                        className="flex-shrink-0"
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                      </Button>
+                    </motion.a>
+                  ))}
+
+                {news.articles.filter((a: NewsArticle) => a.title && a.title.trim() && a.url && a.url.trim()).length === 0 && (
+                  <div className="text-center py-12">
+                    <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-full w-20 h-20 mx-auto mb-4 flex items-center justify-center">
+                      <AlertCircle className="h-10 w-10 text-yellow-600 dark:text-yellow-400" />
                     </div>
-                  </motion.div>
-                ))}
+                    <p className="text-gray-600 dark:text-gray-400 font-medium">No valid news articles found</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">All articles are missing titles or URLs</p>
+                  </div>
+                )}
+              </div>
+            ) : news && news.error ? (
+              <div className="text-center py-8">
+                <div className="text-red-500 dark:text-red-400 mb-2">
+                  <Newspaper className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                </div>
+                <p className="text-red-600 dark:text-red-400 font-semibold mb-1">Failed to load news</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{news.error}</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const fetchNews = async () => {
+                      setNewsLoading(true)
+                      try {
+                        const data = await apiClient.getStockNews(params.ticker, exchange, 10)
+                        setNews(data)
+                      } catch (error: any) {
+                        setNews({
+                          ticker: params.ticker,
+                          exchange,
+                          articles: [],
+                          count: 0,
+                          error: error?.response?.data?.detail || error?.message || 'Failed to fetch news'
+                        })
+                      } finally {
+                        setNewsLoading(false)
+                      }
+                    }
+                    fetchNews()
+                  }}
+                  className="mt-4"
+                >
+                  Retry
+                </Button>
               </div>
             ) : (
               <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                 <Newspaper className="h-12 w-12 mx-auto mb-2 opacity-50" />
                 <p>No news articles available at this time</p>
+                {news && news.count === 0 && (
+                  <p className="text-xs mt-2">No articles found for {news.ticker} on {news.exchange}</p>
+                )}
               </div>
             )}
           </CardContent>

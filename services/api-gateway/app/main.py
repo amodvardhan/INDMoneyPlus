@@ -176,10 +176,13 @@ async def proxy_get(service: str, path: str, request: Request):
         url = f"{SERVICE_URLS[service]}/api/v1/recommendations/{path}"
     elif service == "news":
         # News is part of recommendations service
+        # Path should be the ticker (e.g., "HDFCBANK" from /api/v1/news/HDFCBANK)
         if path and path.strip() and path != "/":
             clean_path = path.lstrip('/')
+            # Construct URL: http://recommendations-service:8088/api/v1/news/{ticker}
             url = f"{SERVICE_URLS['recommendations']}/api/v1/news/{clean_path}"
         else:
+            # Base news endpoint (shouldn't normally be called)
             url = f"{SERVICE_URLS['recommendations']}/api/v1/news"
     elif service == "notifications":
         # Dashboard notifications are part of recommendations service
@@ -194,6 +197,12 @@ async def proxy_get(service: str, path: str, request: Request):
         url = f"{SERVICE_URLS[service]}/api/v1/{path}"
     
     params = dict(request.query_params)
+    
+    # Log the request for debugging (especially for news)
+    if service == "news":
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"📰 Proxying news request: {url} with params {params}")
     
     async with httpx.AsyncClient() as client:
         try:
@@ -213,7 +222,11 @@ async def proxy_get(service: str, path: str, request: Request):
                 status_code=response.status_code
             )
         except httpx.RequestError as e:
-            raise HTTPException(status_code=502, detail=f"Service unavailable: {str(e)}")
+            # Better error message for debugging
+            error_msg = f"Service unavailable: {str(e)}"
+            if service == "news":
+                error_msg += f" (URL: {url})"
+            raise HTTPException(status_code=502, detail=error_msg)
 
 @app.post("/api/v1/{service}/{path:path}")
 async def proxy_post(service: str, path: str, request: Request):
