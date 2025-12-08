@@ -25,6 +25,8 @@ import type {
   PriceComparisonData,
   Recommendation,
   TopRecommendationsResponse,
+  StockNewsResponse,
+  DashboardNotification,
   ApiError,
 } from './types'
 
@@ -266,6 +268,45 @@ class ApiClient {
       `/api/v1/recommendations/${ticker}`,
       {
         params: exchange ? { exchange } : {},
+      }
+    )
+    return response.data
+  }
+
+  async getStockNews(ticker: string, exchange?: string, limit?: number): Promise<StockNewsResponse> {
+    const response = await this.client.get<StockNewsResponse>(
+      `/api/v1/news/${ticker}`,
+      {
+        params: {
+          ...(exchange && { exchange }),
+          ...(limit && { limit }),
+        },
+      }
+    )
+    return response.data
+  }
+
+  async getDashboardNotifications(userId: number, limit?: number, unreadOnly?: boolean): Promise<DashboardNotification[]> {
+    const response = await this.client.get<DashboardNotification[]>(
+      '/api/v1/notifications', // No trailing slash to avoid 307 redirect
+      {
+        params: {
+          user_id: userId,
+          ...(limit && { limit }),
+          ...(unreadOnly && { unread_only: 'true' }),
+        },
+      }
+    )
+    return response.data
+  }
+
+  async getUnreadNotificationCount(userId: number): Promise<{ user_id: number; unread_count: number; last_checked?: string }> {
+    const response = await this.client.get<{ user_id: number; unread_count: number; last_checked?: string }>(
+      '/api/v1/notifications/unread-count',
+      {
+        params: {
+          user_id: userId,
+        },
       }
     )
     return response.data

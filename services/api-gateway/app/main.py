@@ -12,7 +12,8 @@ from jose import jwt, JWTError
 app = FastAPI(
     title="Portfolio Superapp API Gateway",
     description="Edge API gateway with authentication and routing",
-    version="0.1.0"
+    version="0.1.0",
+    redirect_slashes=False  # Disable automatic trailing slash redirects to prevent 307 errors
 )
 
 # CORS middleware
@@ -125,10 +126,40 @@ async def proxy_auth_get(path: str, request: Request):
         except httpx.RequestError as e:
             raise HTTPException(status_code=502, detail=f"Service unavailable: {str(e)}")
 
+# Handle notifications endpoint without path (base endpoint)
+@app.get("/api/v1/notifications")
+async def proxy_notifications_base(request: Request):
+    """Proxy GET requests to notifications base endpoint"""
+    user_id = await verify_token(request)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    
+    url = f"{SERVICE_URLS['recommendations']}/api/v1/notifications"
+    params = dict(request.query_params)
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(
+                url,
+                params=params,
+                headers={"X-User-ID": user_id},
+                timeout=30.0
+            )
+            try:
+                content = response.json()
+            except Exception:
+                content = {"detail": response.text or f"Error: {response.status_code}"}
+            return JSONResponse(
+                content=content,
+                status_code=response.status_code
+            )
+        except httpx.RequestError as e:
+            raise HTTPException(status_code=502, detail=f"Service unavailable: {str(e)}")
+
 @app.get("/api/v1/{service}/{path:path}")
 async def proxy_get(service: str, path: str, request: Request):
     """Proxy GET requests to backend services"""
-    if service not in SERVICE_URLS:
+    if service not in SERVICE_URLS and service not in ["news", "notifications"]:
         raise HTTPException(status_code=404, detail="Service not found")
     
     user_id = await verify_token(request)
@@ -137,11 +168,28 @@ async def proxy_get(service: str, path: str, request: Request):
     
     # For agent-orchestrator, the path already includes "agents" prefix
     # For recommendations, the path includes "recommendations" prefix
+    # For news and notifications, they're part of recommendations service but at root /api/v1
     # So we need to include the service name in the path
     if service in ["agent", "agents"]:
         url = f"{SERVICE_URLS[service]}/api/v1/agents/{path}"
     elif service == "recommendations":
         url = f"{SERVICE_URLS[service]}/api/v1/recommendations/{path}"
+    elif service == "news":
+        # News is part of recommendations service
+        if path and path.strip() and path != "/":
+            clean_path = path.lstrip('/')
+            url = f"{SERVICE_URLS['recommendations']}/api/v1/news/{clean_path}"
+        else:
+            url = f"{SERVICE_URLS['recommendations']}/api/v1/news"
+    elif service == "notifications":
+        # Dashboard notifications are part of recommendations service
+        # This handles paths like "notifications/unread-count"
+        clean_path = path.lstrip('/') if path else ""
+        if clean_path:
+            url = f"{SERVICE_URLS['recommendations']}/api/v1/notifications/{clean_path}"
+        else:
+            # Should not reach here due to base route above, but handle just in case
+            url = f"{SERVICE_URLS['recommendations']}/api/v1/notifications"
     else:
         url = f"{SERVICE_URLS[service]}/api/v1/{path}"
     
@@ -170,7 +218,7 @@ async def proxy_get(service: str, path: str, request: Request):
 @app.post("/api/v1/{service}/{path:path}")
 async def proxy_post(service: str, path: str, request: Request):
     """Proxy POST requests to backend services"""
-    if service not in SERVICE_URLS:
+    if service not in SERVICE_URLS and service not in ["news", "notifications"]:
         raise HTTPException(status_code=404, detail="Service not found")
     
     user_id = await verify_token(request)
@@ -179,11 +227,24 @@ async def proxy_post(service: str, path: str, request: Request):
     
     # For agent-orchestrator, the path already includes "agents" prefix
     # For recommendations, the path includes "recommendations" prefix
+    # For news and notifications, they're part of recommendations service but at root /api/v1
     # So we need to include the service name in the path
     if service in ["agent", "agents"]:
         url = f"{SERVICE_URLS[service]}/api/v1/agents/{path}"
     elif service == "recommendations":
         url = f"{SERVICE_URLS[service]}/api/v1/recommendations/{path}"
+    elif service == "news":
+        # News is part of recommendations service
+        url = f"{SERVICE_URLS['recommendations']}/api/v1/news/{path}"
+    elif service == "notifications":
+        # Dashboard notifications are part of recommendations service
+        # This handles paths like "notifications/unread-count"
+        clean_path = path.lstrip('/') if path else ""
+        if clean_path:
+            url = f"{SERVICE_URLS['recommendations']}/api/v1/notifications/{clean_path}"
+        else:
+            # Should not reach here due to base route above, but handle just in case
+            url = f"{SERVICE_URLS['recommendations']}/api/v1/notifications"
     else:
         url = f"{SERVICE_URLS[service]}/api/v1/{path}"
     

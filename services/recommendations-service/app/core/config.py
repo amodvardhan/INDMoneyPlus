@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     marketdata_service_url: str = "http://localhost:8003"
     aggregator_service_url: str = "http://localhost:8004"
     agent_orchestrator_url: str = "http://agent-orchestrator:8084"
+    notification_service_url: Optional[str] = None  # Optional: for future email/SMS integration
     
     # Recommendation settings
     max_recommendations: int = 20

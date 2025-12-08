@@ -16,7 +16,8 @@ import { toast } from 'sonner'
 import { PriceChart } from '@/components/charts/price-chart'
 import { CandlestickChart } from '@/components/charts/candlestick-chart'
 import { usePriceTimeseries } from '@/hooks/useLivePrice'
-import type { StockFundamentals } from '@/lib/api/types'
+import type { StockFundamentals, StockNewsResponse, NewsArticle } from '@/lib/api/types'
+import { Newspaper, Calendar, Globe } from 'lucide-react'
 
 interface Recommendation {
   id: number
@@ -60,6 +61,8 @@ export default function RecommendationDetailPage({
   const [chartType, setChartType] = useState<'line' | 'area' | 'candlestick'>('candlestick')
   const [fundamentals, setFundamentals] = useState<StockFundamentals | null>(null)
   const [fundamentalsLoading, setFundamentalsLoading] = useState(false)
+  const [news, setNews] = useState<any>(null)
+  const [newsLoading, setNewsLoading] = useState(false)
 
   const { data: recommendations, isLoading, error } = useQuery<Recommendation[]>({
     queryKey: ['recommendations', params.ticker, exchange],
@@ -134,6 +137,26 @@ export default function RecommendationDetailPage({
 
     if (params.ticker && exchange) {
       fetchFundamentals()
+    }
+  }, [params.ticker, exchange])
+
+  // Fetch news
+  useEffect(() => {
+    const fetchNews = async () => {
+      setNewsLoading(true)
+      try {
+        const data = await apiClient.getStockNews(params.ticker, exchange, 10)
+        setNews(data)
+      } catch (error) {
+        console.error('Failed to fetch news:', error)
+        // Don't show error to user, just don't display news
+      } finally {
+        setNewsLoading(false)
+      }
+    }
+
+    if (params.ticker && exchange) {
+      fetchNews()
     }
   }, [params.ticker, exchange])
 
@@ -362,18 +385,36 @@ export default function RecommendationDetailPage({
               </p>
             </div>
 
-            {primaryRec.source_url && (
-              <div className="mt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => window.open(primaryRec.source_url!, '_blank')}
-                  className="w-full"
-                >
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  View Source
-                </Button>
+            {/* Sources Section */}
+            <div className="mt-4 space-y-2">
+              <div className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Sources & References</div>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="outline" className="bg-white dark:bg-gray-800">
+                  <Globe className="h-3 w-3 mr-1" />
+                  {primaryRec.source.name}
+                  {primaryRec.source.is_verified === 'true' && (
+                    <CheckCircle2 className="h-3 w-3 ml-1 text-green-500" />
+                  )}
+                </Badge>
+                {primaryRec.source_url && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => window.open(primaryRec.source_url!, '_blank')}
+                    className="text-xs"
+                  >
+                    <ExternalLink className="h-3 w-3 mr-1" />
+                    View Source Article
+                  </Button>
+                )}
+                {primaryRec.source_date && (
+                  <Badge variant="outline" className="bg-white dark:bg-gray-800">
+                    <Calendar className="h-3 w-3 mr-1" />
+                    {formatDate(primaryRec.source_date, 'short')}
+                  </Badge>
+                )}
               </div>
-            )}
+            </div>
           </CardContent>
         </Card>
       </motion.div>
@@ -469,6 +510,85 @@ export default function RecommendationDetailPage({
           </Card>
         </motion.div>
       )}
+
+      {/* News Section */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className="mb-6"
+      >
+        <Card className="border-2 shadow-xl">
+          <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border-b-2">
+            <CardTitle className="text-xl flex items-center gap-2">
+              <Newspaper className="h-5 w-5 text-purple-600" />
+              Latest News
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-6">
+            {newsLoading ? (
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="h-24 w-full" />
+                ))}
+              </div>
+            ) : news && news.articles && news.articles.length > 0 ? (
+              <div className="space-y-4">
+                {news.articles.map((article: NewsArticle, index: number) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.1 * index }}
+                    className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <a
+                          href={article.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-lg font-semibold text-gray-900 dark:text-gray-100 hover:text-primary-600 dark:hover:text-primary-400 transition-colors line-clamp-2"
+                        >
+                          {article.title}
+                        </a>
+                        {article.snippet && (
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 line-clamp-2">
+                            {article.snippet}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-4 mt-3 text-xs text-gray-500 dark:text-gray-500">
+                          <span className="flex items-center gap-1">
+                            <Newspaper className="h-3 w-3" />
+                            {article.source}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            {formatDate(article.published_at, 'relative')}
+                          </span>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => window.open(article.url, '_blank')}
+                        className="flex-shrink-0"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                <Newspaper className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p>No news articles available at this time</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
 
       {/* Price Trend Chart */}
       <motion.div

@@ -207,6 +207,11 @@ watch_all() {
     print_info "Services will auto-reload on file changes"
     print_info "Press Ctrl+C to stop watching"
     echo ""
+    print_info "📡 Watching services:"
+    print_info "  - recommendations-service (includes News API & Dashboard Notifications)"
+    print_info "  - notification-service (email/SMS/push notifications)"
+    print_info "  - All other backend services and web frontend"
+    echo ""
     
     # List of services to watch
     local services=(
@@ -332,8 +337,16 @@ watch_service() {
         print_error "Service name required"
         echo "Usage: ./scripts/deploy.sh watch <service-name> [path]"
         echo ""
+        echo "Available services:"
+        echo "  auth-service, marketdata-service, analytics-service, aggregator-service"
+        echo "  agent-orchestrator, notification-service, order-orchestrator"
+        echo "  recommendations-service (includes News API & Dashboard Notifications)"
+        echo "  api-gateway, admin-service, web"
+        echo ""
         echo "Examples:"
         echo "  ./scripts/deploy.sh watch auth-service"
+        echo "  ./scripts/deploy.sh watch recommendations-service"
+        echo "  ./scripts/deploy.sh watch notification-service"
         echo "  ./scripts/deploy.sh watch recommendations-service services/recommendations-service"
         exit 1
     fi
@@ -354,6 +367,12 @@ watch_service() {
             web) watch_path="web" ;;
             *)
                 print_error "Unknown service: $service_name"
+                echo ""
+                echo "Available services:"
+                echo "  auth-service, marketdata-service, analytics-service, aggregator-service"
+                echo "  agent-orchestrator, notification-service, order-orchestrator"
+                echo "  recommendations-service (includes News API & Dashboard Notifications)"
+                echo "  api-gateway, admin-service, web"
                 exit 1
                 ;;
         esac
@@ -366,6 +385,11 @@ watch_service() {
     
     print_info "Watching $watch_path for changes..."
     print_info "Service $service_name will auto-reload on file changes"
+    if [ "$service_name" = "recommendations-service" ]; then
+        print_info "📰 This includes: Recommendations API, News API, and Dashboard Notifications"
+    elif [ "$service_name" = "notification-service" ]; then
+        print_info "🔔 This includes: Email, SMS, Push notifications, and Webhooks"
+    fi
     print_info "Press Ctrl+C to stop watching"
     echo ""
     
@@ -432,7 +456,8 @@ show_usage() {
     echo ""
     echo "Hot Reload Examples:"
     echo "  ./scripts/deploy.sh reload auth-service           # Quick restart"
-    echo "  ./scripts/deploy.sh watch recommendations-service # Auto-reload on changes"
+    echo "  ./scripts/deploy.sh watch recommendations-service # Auto-reload (includes News & Notifications)"
+    echo "  ./scripts/deploy.sh watch notification-service    # Auto-reload notification service"
     echo "  ./scripts/deploy.sh watch-all                     # Watch ALL services + web"
     echo "  ./scripts/deploy.sh watch web web                 # Watch specific path"
     echo ""

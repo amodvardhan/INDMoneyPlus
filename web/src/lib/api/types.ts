@@ -294,6 +294,36 @@ export interface TopRecommendationsResponse {
   last_updated: string
 }
 
+export interface NewsArticle {
+  title: string
+  url: string
+  source: string
+  published_at: string
+  snippet?: string | null
+}
+
+export interface StockNewsResponse {
+  ticker: string
+  exchange: string
+  articles: NewsArticle[]
+  count: number
+  error?: string
+}
+
+export interface DashboardNotification {
+  id: string
+  type: 'new_recommendation' | 'price_alert' | 'market_update'
+  title: string
+  message: string
+  ticker?: string | null
+  exchange?: string | null
+  recommendation_type?: string | null
+  priority: 'low' | 'normal' | 'high' | 'urgent'
+  created_at: string
+  read: boolean
+  action_url?: string | null
+}
+
 export interface ApiError {
   detail: string
   status_code?: number

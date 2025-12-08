@@ -2,6 +2,14 @@
 
 # Quick watch-all script for hot reload
 # Usage: ./scripts/watch-all.sh
+#
+# Watches all services including:
+#   - recommendations-service (includes News API & Dashboard Notifications)
+#   - notification-service (email/SMS/push notifications)
+#   - All other backend services and web frontend
+#
+# Services will auto-reload on file changes.
+# Press Ctrl+C to stop watching.
 
 set -e
 

@@ -364,6 +364,7 @@ services:
       MARKETDATA_SERVICE_URL: http://marketdata-service:8081
       AGGREGATOR_SERVICE_URL: http://aggregator-service:8083
       AGENT_ORCHESTRATOR_URL: http://agent-orchestrator:8084
+      NOTIFICATION_SERVICE_URL: http://notification-service:8085
       SERVICE_NAME: recommendations-service
       SERVICE_VERSION: 0.1.0
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
@@ -379,6 +380,8 @@ services:
       marketdata-service:
         condition: service_healthy
       agent-orchestrator:
+        condition: service_healthy
+      notification-service:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8088/health"]

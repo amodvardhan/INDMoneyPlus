@@ -8,7 +8,7 @@ from starlette.responses import Response
 from app.core.config import settings
 from app.core.database import engine
 from app.models import Base
-from app.api import recommendations
+from app.api import recommendations, news, dashboard_notifications
 
 # Prometheus metrics
 http_requests_total = Counter(
@@ -75,6 +75,8 @@ app = FastAPI(
 
 # Include routers
 app.include_router(recommendations.router, prefix="/api/v1", tags=["recommendations"])
+app.include_router(news.router, prefix="/api/v1", tags=["news"])
+app.include_router(dashboard_notifications.router, prefix="/api/v1", tags=["notifications"])
 
 
 @app.get("/health")

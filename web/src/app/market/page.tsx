@@ -14,6 +14,7 @@ import { apiClient } from '@/lib/api/client'
 import { motion } from 'framer-motion'
 import { Search, TrendingUp, BookOpen, Info, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
+import { NotificationBell } from '@/components/notifications/notification-bell'
 import type {
   MarketHealthData,
   PriceComparisonData,
@@ -75,7 +76,7 @@ export default function MarketPage() {
       setIsLoadingRecommendations(false)
     }
   }
-  
+
   const handleRefreshRecommendations = async () => {
     await loadMarketData(true)
   }
@@ -116,17 +117,22 @@ export default function MarketPage() {
         animate={{ opacity: 1, y: 0 }}
         className="mb-8"
       >
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-3 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl shadow-lg">
-            <TrendingUp className="h-8 w-8 text-white" />
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl shadow-lg">
+              <TrendingUp className="h-8 w-8 text-white" />
+            </div>
+            <div>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
+                Market Overview
+              </h1>
+              <p className="text-lg text-gray-600 dark:text-gray-400 mt-1">
+                Real-time market health, stock recommendations, and price comparisons
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
-              Market Overview
-            </h1>
-            <p className="text-lg text-gray-600 dark:text-gray-400 mt-1">
-              Real-time market health, stock recommendations, and price comparisons
-            </p>
+          <div className="flex items-center gap-2">
+            <NotificationBell />
           </div>
         </div>
       </motion.div>
