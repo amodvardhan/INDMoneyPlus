@@ -98,16 +98,17 @@ export function MarketHealthCard({ data, isLoading }: MarketHealthCardProps) {
   const isPositive = data.overall_change_percent >= 0
 
   return (
-    <Card className="border-2 shadow-lg">
-      <CardHeader className="bg-gradient-to-r from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 border-b">
+    <Card className="border border-gray-200 dark:border-gray-800 shadow-sm">
+      <CardHeader className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-xl flex items-center gap-2">
-            <Activity className="h-5 w-5" />
+          <CardTitle className="text-lg font-semibold flex items-center gap-2">
+            <Activity className="h-4 w-4 text-gray-600 dark:text-gray-400" />
             Market Health
           </CardTitle>
           <Badge
+            variant="outline"
             className={cn(
-              'px-3 py-1 text-sm font-semibold',
+              'px-2.5 py-0.5 text-xs font-medium',
               getVolatilityColor()
             )}
           >
@@ -115,64 +116,57 @@ export function MarketHealthCard({ data, isLoading }: MarketHealthCardProps) {
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="pt-6">
+      <CardContent className="p-6">
         <div className="space-y-6">
           {/* Main Health Indicator */}
           <div className="text-center">
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className={cn(
-                'inline-flex items-center justify-center w-32 h-32 rounded-full bg-gradient-to-br shadow-xl mb-4',
-                getConditionColor()
-              )}
-            >
+            <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-gray-100 dark:bg-gray-800 mb-4">
               <div className="text-center">
-                <div className="text-4xl font-bold text-white">{healthPercentage}</div>
-                <div className="text-xs text-white/90 mt-1">Health Score</div>
+                <div className="text-3xl font-bold text-gray-900 dark:text-white">{healthPercentage}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Health Score</div>
               </div>
-            </motion.div>
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-1">
               {getConditionLabel()}
             </h3>
-            <p className="text-gray-600 dark:text-gray-400">{data.sentiment}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">{data.sentiment}</p>
           </div>
 
           {/* Overall Change */}
-          <div className="flex items-center justify-center gap-2 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+          <div className="flex items-center justify-center gap-2 p-4 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-800">
             {isPositive ? (
-              <TrendingUp className="h-6 w-6 text-green-600" />
+              <TrendingUp className="h-5 w-5 text-green-600 dark:text-green-500" />
             ) : (
-              <TrendingDown className="h-6 w-6 text-red-600" />
+              <TrendingDown className="h-5 w-5 text-red-600 dark:text-red-500" />
             )}
             <div className="text-center">
               <div className={cn(
-                'text-2xl font-bold',
-                isPositive ? 'text-green-600' : 'text-red-600'
+                'text-xl font-semibold',
+                isPositive ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'
               )}>
                 {isPositive ? '+' : ''}{data.overall_change_percent.toFixed(2)}%
               </div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">Overall Change</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400">Overall Change</div>
             </div>
           </div>
 
           {/* Recommendation */}
           <div className={cn(
-            'p-4 rounded-lg border-2 flex items-start gap-3',
+            'p-4 rounded border flex items-start gap-3',
             data.recommendation === 'Buy' || data.recommendation === 'Hold'
-              ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
-              : 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800'
+              ? 'bg-green-50/50 dark:bg-green-900/10 border-green-200 dark:border-green-800'
+              : 'bg-yellow-50/50 dark:bg-yellow-900/10 border-yellow-200 dark:border-yellow-800'
           )}>
             {data.recommendation === 'Buy' ? (
-              <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5" />
+              <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-500 mt-0.5" />
             ) : (
-              <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
+              <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-500 mt-0.5" />
             )}
             <div>
-              <div className="font-semibold text-gray-900 dark:text-white mb-1">
+              <div className="font-medium text-sm text-gray-900 dark:text-white mb-1">
                 Recommendation: {data.recommendation}
               </div>
-              <p className="text-sm text-gray-700 dark:text-gray-300">
+              <p className="text-xs text-gray-600 dark:text-gray-400">
                 {data.recommendation === 'Buy'
                   ? 'Market conditions are favorable for investments. Consider buying opportunities.'
                   : data.recommendation === 'Hold'
@@ -184,20 +178,17 @@ export function MarketHealthCard({ data, isLoading }: MarketHealthCardProps) {
 
           {/* Indices Performance */}
           {data.indices && data.indices.length > 0 && (
-            <div className="space-y-3">
-              <h4 className="font-semibold text-gray-900 dark:text-white">Major Indices</h4>
+            <div className="space-y-2">
+              <h4 className="font-medium text-sm text-gray-900 dark:text-white">Major Indices</h4>
               {data.indices.map((index, idx) => {
                 const isIndexPositive = index.change_percent >= 0
                 return (
-                  <motion.div
+                  <div
                     key={idx}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: idx * 0.1 }}
-                    className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                    className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-800"
                   >
                     <div>
-                      <div className="font-medium text-gray-900 dark:text-white">
+                      <div className="font-medium text-sm text-gray-900 dark:text-white">
                         {index.name}
                       </div>
                       <div className="text-xs text-gray-500 dark:text-gray-400">
@@ -205,15 +196,15 @@ export function MarketHealthCard({ data, isLoading }: MarketHealthCardProps) {
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="font-bold text-gray-900 dark:text-white text-lg">
+                      <div className="font-semibold text-gray-900 dark:text-white">
                         ₹{index.current_value.toLocaleString('en-IN', {
                           maximumFractionDigits: 2,
                           minimumFractionDigits: 2,
                         })}
                       </div>
                       <div className={cn(
-                        'text-sm font-medium flex items-center gap-1',
-                        isIndexPositive ? 'text-green-600' : 'text-red-600'
+                        'text-xs font-medium flex items-center gap-1 justify-end',
+                        isIndexPositive ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'
                       )}>
                         {isIndexPositive ? (
                           <TrendingUp className="h-3 w-3" />
@@ -223,14 +214,14 @@ export function MarketHealthCard({ data, isLoading }: MarketHealthCardProps) {
                         {isIndexPositive ? '+' : ''}{index.change_percent.toFixed(2)}%
                       </div>
                     </div>
-                  </motion.div>
+                  </div>
                 )
               })}
             </div>
           )}
 
           {/* Last Updated */}
-          <div className="text-xs text-gray-500 dark:text-gray-400 text-center pt-2 border-t">
+          <div className="text-xs text-gray-400 dark:text-gray-500 text-center pt-4 border-t border-gray-200 dark:border-gray-800">
             Last updated: {new Date(data.last_updated).toLocaleString()}
           </div>
         </div>

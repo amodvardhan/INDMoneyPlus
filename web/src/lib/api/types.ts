@@ -294,6 +294,12 @@ export interface TopRecommendationsResponse {
   last_updated: string
 }
 
+export interface RecommendationResponse {
+  recommendation: Recommendation
+  market_data?: any
+  similar_recommendations?: Recommendation[]
+}
+
 export interface NewsArticle {
   title: string
   url: string

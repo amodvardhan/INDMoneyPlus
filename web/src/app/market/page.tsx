@@ -11,8 +11,7 @@ import { MarketHealthCard } from '@/components/market/market-health-card'
 import { PriceComparison } from '@/components/market/price-comparison'
 import { RecommendationsList } from '@/components/market/recommendations-list'
 import { apiClient } from '@/lib/api/client'
-import { motion } from 'framer-motion'
-import { Search, TrendingUp, BookOpen, Info, Sparkles } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { NotificationBell } from '@/components/notifications/notification-bell'
 import type {
@@ -110,158 +109,92 @@ export default function MarketPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-8"
-      >
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl shadow-lg">
-              <TrendingUp className="h-8 w-8 text-white" />
-            </div>
+    <div className="min-h-screen bg-white dark:bg-gray-950">
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
+        {/* Clean Professional Header */}
+        <div className="mb-8 border-b border-gray-200 dark:border-gray-800 pb-6">
+          <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
+              <h1 className="text-3xl font-semibold text-gray-900 dark:text-white mb-1">
                 Market Overview
               </h1>
-              <p className="text-lg text-gray-600 dark:text-gray-400 mt-1">
-                Real-time market health, stock recommendations, and price comparisons
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Real-time market health, recommendations, and price comparisons
               </p>
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <NotificationBell />
+            <div className="flex items-center gap-2">
+              <NotificationBell />
+            </div>
           </div>
         </div>
-      </motion.div>
 
-      {/* Educational Banner for Beginners */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="mb-6"
-      >
-        <Card className="border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-4">
-              <div className="p-2 bg-blue-100 dark:bg-blue-900/50 rounded-lg">
-                <Sparkles className="h-6 w-6 text-blue-600" />
+        {/* Market Health */}
+        <div className="mb-8">
+          <MarketHealthCard data={marketHealth} isLoading={isLoadingHealth} />
+        </div>
+
+        {/* Price Comparison Search */}
+        <div className="mb-8">
+          <Card className="border border-gray-200 dark:border-gray-800 shadow-sm">
+            <CardHeader className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <Search className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                Compare Prices (NSE vs BSE)
+              </CardTitle>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Compare stock prices across exchanges
+              </p>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="flex gap-3">
+                <Input
+                  placeholder="Enter ticker symbol (e.g., RELIANCE, TCS)"
+                  value={tickerSearch}
+                  onChange={(e) => setTickerSearch(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      handleTickerSearch()
+                    }
+                  }}
+                  className="flex-1 h-10 text-sm border-gray-300 dark:border-gray-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
+                <Button
+                  onClick={handleTickerSearch}
+                  disabled={isLoadingComparison}
+                  className="h-10 px-6 bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <Search className="h-4 w-4 mr-2" />
+                  Compare
+                </Button>
               </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-lg mb-2 text-gray-900 dark:text-white">
-                  New to Stock Market?
-                </h3>
-                <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">
-                  This page shows you the overall market condition, top stock recommendations from
-                  expert sources, and price comparisons across exchanges. Use this information to
-                  make informed investment decisions.
-                </p>
-                <div className="flex items-center gap-4">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => router.push('/handbook')}
-                    className="text-xs"
-                  >
-                    <BookOpen className="h-3 w-3 mr-2" />
-                    Learn More
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      // Open chat assistant
-                      const event = new CustomEvent('open-chat')
-                      window.dispatchEvent(event)
-                    }}
-                    className="text-xs"
-                  >
-                    <Info className="h-3 w-3 mr-2" />
-                    Ask Questions
-                  </Button>
+              {priceComparison && (
+                <div className="mt-6">
+                  <PriceComparison data={priceComparison} />
                 </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      {/* Market Health */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="mb-6"
-      >
-        <MarketHealthCard data={marketHealth} isLoading={isLoadingHealth} />
-      </motion.div>
-
-      {/* Price Comparison Search */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="mb-6"
-      >
-        <Card className="border-2 shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-xl">Compare Prices (NSE vs BSE)</CardTitle>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              Many stocks trade on both NSE and BSE. Compare prices to find the best deal.
-            </p>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-2">
-              <Input
-                placeholder="Enter ticker symbol (e.g., RELIANCE, TCS)"
-                value={tickerSearch}
-                onChange={(e) => setTickerSearch(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    handleTickerSearch()
-                  }
-                }}
-                className="flex-1"
-              />
-              <Button onClick={handleTickerSearch} disabled={isLoadingComparison}>
-                <Search className="h-4 w-4 mr-2" />
-                Compare
-              </Button>
-            </div>
-            {priceComparison && (
-              <div className="mt-4">
-                <PriceComparison data={priceComparison} />
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      {/* Recommendations */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-      >
-        {recommendations ? (
-          <RecommendationsList
-            buyRecommendations={recommendations.buy_recommendations}
-            sellRecommendations={recommendations.sell_recommendations}
-            lastUpdated={recommendations.last_updated}
-            isLoading={isLoadingRecommendations}
-            onRefresh={handleRefreshRecommendations}
-          />
-        ) : (
-          <Card className="border-2 shadow-lg">
-            <CardContent className="pt-6">
-              <Skeleton className="h-64 w-full" />
+              )}
             </CardContent>
           </Card>
-        )}
-      </motion.div>
+        </div>
+
+        {/* Recommendations */}
+        <div>
+          {recommendations ? (
+            <RecommendationsList
+              buyRecommendations={recommendations.buy_recommendations}
+              sellRecommendations={recommendations.sell_recommendations}
+              lastUpdated={recommendations.last_updated}
+              isLoading={isLoadingRecommendations}
+              onRefresh={handleRefreshRecommendations}
+            />
+          ) : (
+            <Card className="border border-gray-200 dark:border-gray-800 shadow-sm">
+              <CardContent className="p-6">
+                <Skeleton className="h-64 w-full" />
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

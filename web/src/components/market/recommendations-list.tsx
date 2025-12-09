@@ -5,7 +5,6 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { TrendingUp, TrendingDown, ExternalLink, AlertCircle, Info, Star, RefreshCw, Sparkles, Clock, CheckCircle2 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
-import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
@@ -144,12 +143,8 @@ export function RecommendationsList({
       : null
 
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: index * 0.1 }}
-        whileHover={{ scale: 1.02, y: -2 }}
-        className="p-5 border-2 rounded-xl hover:shadow-xl transition-all cursor-pointer bg-white dark:bg-gray-900 hover:border-primary-300 dark:hover:border-primary-700"
+      <div
+        className="p-4 border border-gray-200 dark:border-gray-800 rounded hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-all cursor-pointer"
         onClick={() => {
           if (onRecommendationClick) {
             onRecommendationClick(rec)
@@ -158,37 +153,37 @@ export function RecommendationsList({
           }
         }}
       >
-        <div className="flex items-start justify-between mb-4">
+        <div className="flex items-start justify-between">
           <div className="flex-1">
-            <div className="flex items-center gap-2 mb-3 flex-wrap">
-              <h3 className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
+              <h3 className="text-base font-semibold text-gray-900 dark:text-white">
                 {rec.ticker}
               </h3>
-              <Badge variant="outline" className="text-xs font-medium border-gray-300 dark:border-gray-600">
+              <Badge variant="outline" className="text-xs border-gray-300 dark:border-gray-700">
                 {rec.exchange}
               </Badge>
-              <Badge className={cn('text-xs font-semibold px-3 py-1 shadow-sm', getRecommendationColor(rec.recommendation_type))}>
+              <Badge className={cn('text-xs font-medium px-2 py-0.5', getRecommendationColor(rec.recommendation_type))}>
                 {rec.recommendation_type.replace('_', ' ').toUpperCase()}
               </Badge>
               {rec.source.is_verified === 'true' && (
                 <Star className="h-4 w-4 text-yellow-500 fill-yellow-500 animate-pulse" />
               )}
             </div>
-            <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400 flex-wrap">
+            <div className="flex items-center gap-3 text-xs text-gray-600 dark:text-gray-400 flex-wrap mb-3">
               {rec.current_price && (
-                <span className="font-medium">Current: ₹{rec.current_price.toFixed(2)}</span>
+                <span>Current: <span className="font-medium text-gray-900 dark:text-white">₹{rec.current_price.toFixed(2)}</span></span>
               )}
               {rec.target_price && (
-                <span className="font-medium">
-                  Target: ₹{rec.target_price.toFixed(2)}
+                <span>
+                  Target: <span className="font-medium text-gray-900 dark:text-white">₹{rec.target_price.toFixed(2)}</span>
                 </span>
               )}
               {potentialReturn && (
                 <span className={cn(
-                  'font-semibold',
-                  potentialReturn > 0 ? 'text-green-600' : 'text-red-600'
+                  'font-medium',
+                  potentialReturn > 0 ? 'text-green-600 dark:text-green-500' : 'text-red-600 dark:text-red-500'
                 )}>
-                  {potentialReturn > 0 ? '+' : ''}{potentialReturn.toFixed(1)}% potential
+                  {potentialReturn > 0 ? '+' : ''}{potentialReturn.toFixed(1)}%
                 </span>
               )}
               {rec.price_source && (
@@ -219,39 +214,37 @@ export function RecommendationsList({
             </div>
           </div>
           <div className="text-right">
-            <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Confidence</div>
-            <div className="text-lg font-bold text-gray-900 dark:text-white">
+            <div className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Confidence</div>
+            <div className="text-sm font-semibold text-gray-900 dark:text-white">
               {Math.round(rec.confidence_score * 100)}%
             </div>
           </div>
         </div>
 
-        <p className="text-sm text-gray-700 dark:text-gray-300 mb-4 line-clamp-2 leading-relaxed">
+        <p className="text-xs text-gray-600 dark:text-gray-400 mb-3 line-clamp-2 leading-relaxed">
           {rec.reasoning}
         </p>
 
-        <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2 flex-wrap">
-            <Badge variant="outline" className={cn('text-xs font-medium px-2.5 py-1', getRiskColor(rec.risk_level))}>
+            <Badge variant="outline" className={cn('text-xs px-2 py-0.5', getRiskColor(rec.risk_level))}>
               {rec.risk_level.toUpperCase()} Risk
             </Badge>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs text-gray-600 dark:text-gray-400 font-medium">
-                Source: {rec.source.name}
-              </span>
-              {isAIGenerated(rec.source) && (
-                <Badge variant="outline" className="text-xs px-2 py-0.5 border-blue-500 text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30">
-                  <Sparkles className="h-2.5 w-2.5 mr-1" />
-                  AI
-                </Badge>
-              )}
-              {rec.source.is_verified === 'true' && !isAIGenerated(rec.source) && (
-                <Badge variant="outline" className="text-xs px-2 py-0.5 bg-green-50 text-green-700 border-green-300 dark:bg-green-900/30 dark:text-green-400">
-                  <CheckCircle2 className="h-2.5 w-2.5 mr-1" />
-                  Verified
-                </Badge>
-              )}
-            </div>
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              Source: {rec.source.name}
+            </span>
+            {isAIGenerated(rec.source) && (
+              <Badge variant="outline" className="text-xs px-1.5 py-0.5 border-blue-500 text-blue-600 dark:text-blue-400">
+                <Sparkles className="h-2.5 w-2.5 mr-1" />
+                AI
+              </Badge>
+            )}
+            {rec.source.is_verified === 'true' && !isAIGenerated(rec.source) && (
+              <Badge variant="outline" className="text-xs px-1.5 py-0.5 text-green-600 border-green-300 dark:text-green-500">
+                <CheckCircle2 className="h-2.5 w-2.5 mr-1" />
+                Verified
+              </Badge>
+            )}
           </div>
           {rec.source_url && (
             <Button
@@ -261,40 +254,40 @@ export function RecommendationsList({
                 e.stopPropagation()
                 window.open(rec.source_url!, '_blank')
               }}
-              className="text-xs hover:bg-gray-100 dark:hover:bg-gray-800"
+              className="text-xs h-7 px-2"
             >
               <ExternalLink className="h-3 w-3 mr-1" />
               Source
             </Button>
           )}
         </div>
-      </motion.div>
+      </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Buy Recommendations */}
       {buyRecommendations.length > 0 && (
-        <Card className="border-2 shadow-xl bg-gradient-to-br from-white to-green-50/30 dark:from-gray-900 dark:to-green-950/30">
-          <CardHeader className="bg-gradient-to-r from-green-50 via-emerald-50 to-teal-50 dark:from-green-900/30 dark:via-emerald-900/20 dark:to-teal-900/20 border-b-2 border-green-200 dark:border-green-800">
+        <Card className="border border-gray-200 dark:border-gray-800 shadow-sm">
+          <CardHeader className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                <CardTitle className="text-xl flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-green-600" />
+                <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-500" />
                   Buy Recommendations
                   {buyRecommendations.some(r => isAIGenerated(r.source)) && (
-                    <Badge variant="outline" className="ml-2 border-blue-500 text-blue-700 dark:text-blue-400">
+                    <Badge variant="outline" className="ml-2 text-xs border-blue-500 text-blue-600 dark:text-blue-400">
                       <Sparkles className="h-3 w-3 mr-1" />
-                      AI Generated
+                      AI
                     </Badge>
                   )}
                 </CardTitle>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  Top stocks recommended for purchase based on AI-powered market analysis
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Top stocks recommended for purchase
                 </p>
                 {lastUpdated && (
-                  <div className="flex items-center gap-2 mt-2 text-xs text-gray-500 dark:text-gray-400">
+                  <div className="flex items-center gap-2 mt-2 text-xs text-gray-400 dark:text-gray-500">
                     <Clock className="h-3 w-3" />
                     <span>Updated {formatLastUpdated(lastUpdated)}</span>
                   </div>
@@ -306,15 +299,15 @@ export function RecommendationsList({
                   size="sm"
                   onClick={handleRefresh}
                   disabled={isRefreshing || isLoading}
-                  className="ml-4"
+                  className="h-8 w-8 p-0"
                 >
                   <RefreshCw className={cn("h-4 w-4", (isRefreshing || isLoading) && "animate-spin")} />
                 </Button>
               )}
             </div>
           </CardHeader>
-          <CardContent className="pt-6">
-            <div className="space-y-4">
+          <CardContent className="p-0">
+            <div className="divide-y divide-gray-200 dark:divide-gray-800">
               {buyRecommendations.map((rec, idx) => (
                 <RecommendationCard key={rec.id} rec={rec} index={idx} />
               ))}
@@ -325,25 +318,25 @@ export function RecommendationsList({
 
       {/* Sell Recommendations */}
       {sellRecommendations.length > 0 && (
-        <Card className="border-2 shadow-xl bg-gradient-to-br from-white to-red-50/30 dark:from-gray-900 dark:to-red-950/30">
-          <CardHeader className="bg-gradient-to-r from-red-50 via-orange-50 to-amber-50 dark:from-red-900/30 dark:via-orange-900/20 dark:to-amber-900/20 border-b-2 border-red-200 dark:border-red-800">
+        <Card className="border border-gray-200 dark:border-gray-800 shadow-sm">
+          <CardHeader className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                <CardTitle className="text-xl flex items-center gap-2">
-                  <TrendingDown className="h-5 w-5 text-red-600" />
+                <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                  <TrendingDown className="h-4 w-4 text-red-600 dark:text-red-500" />
                   Sell Recommendations
                   {sellRecommendations.some(r => isAIGenerated(r.source)) && (
-                    <Badge variant="outline" className="ml-2 border-blue-500 text-blue-700 dark:text-blue-400">
+                    <Badge variant="outline" className="ml-2 text-xs border-blue-500 text-blue-600 dark:text-blue-400">
                       <Sparkles className="h-3 w-3 mr-1" />
-                      AI Generated
+                      AI
                     </Badge>
                   )}
                 </CardTitle>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  Stocks you may want to consider selling based on AI-powered market analysis
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Stocks you may want to consider selling
                 </p>
                 {lastUpdated && (
-                  <div className="flex items-center gap-2 mt-2 text-xs text-gray-500 dark:text-gray-400">
+                  <div className="flex items-center gap-2 mt-2 text-xs text-gray-400 dark:text-gray-500">
                     <Clock className="h-3 w-3" />
                     <span>Updated {formatLastUpdated(lastUpdated)}</span>
                   </div>
@@ -355,15 +348,15 @@ export function RecommendationsList({
                   size="sm"
                   onClick={handleRefresh}
                   disabled={isRefreshing || isLoading}
-                  className="ml-4"
+                  className="h-8 w-8 p-0"
                 >
                   <RefreshCw className={cn("h-4 w-4", (isRefreshing || isLoading) && "animate-spin")} />
                 </Button>
               )}
             </div>
           </CardHeader>
-          <CardContent className="pt-6">
-            <div className="space-y-4">
+          <CardContent className="p-0">
+            <div className="divide-y divide-gray-200 dark:divide-gray-800">
               {sellRecommendations.map((rec, idx) => (
                 <RecommendationCard key={rec.id} rec={rec} index={idx} />
               ))}
@@ -390,21 +383,15 @@ export function RecommendationsList({
       )}
 
       {/* Educational Note */}
-      <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+      <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded border border-gray-200 dark:border-gray-800">
         <div className="flex items-start gap-3">
-          <div className="p-1.5 bg-blue-100 dark:bg-blue-900/50 rounded-lg">
-            <Sparkles className="h-4 w-4 text-blue-600" />
-          </div>
+          <Info className="h-4 w-4 text-gray-600 dark:text-gray-400 mt-0.5" />
           <div className="flex-1">
-            <div className="text-sm text-blue-800 dark:text-blue-200 mb-2">
-              <strong>AI-Powered Recommendations:</strong> These recommendations are generated dynamically using
-              advanced AI analysis of real-time market data, trends, and market conditions. They are updated
-              regularly to reflect the latest market insights.
+            <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">
+              <strong>AI-Powered Recommendations:</strong> Generated using advanced AI analysis of real-time market data. Updated regularly.
             </div>
-            <div className="text-xs text-blue-700 dark:text-blue-300">
-              <strong>Disclaimer:</strong> Recommendations are for informational purposes only. Always do your own research
-              and consult with a financial advisor before making investment decisions. Past performance
-              does not guarantee future results.
+            <div className="text-xs text-gray-500 dark:text-gray-500">
+              <strong>Disclaimer:</strong> For informational purposes only. Always do your own research and consult with a financial advisor.
             </div>
           </div>
         </div>

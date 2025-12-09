@@ -25,6 +25,7 @@ import type {
   PriceComparisonData,
   Recommendation,
   TopRecommendationsResponse,
+  RecommendationResponse,
   StockNewsResponse,
   DashboardNotification,
   ApiError,
@@ -271,6 +272,29 @@ class ApiClient {
       }
     )
     return response.data
+  }
+
+  async getDetailedRecommendation(ticker: string, exchange?: string): Promise<Recommendation[]> {
+    try {
+      const response = await this.client.get<RecommendationResponse>(
+        `/api/v1/recommendations/${ticker}/detailed`,
+        {
+          params: exchange ? { exchange } : {},
+        }
+      )
+      // Convert response to array format for compatibility
+      const recommendations = [response.data.recommendation]
+      if (response.data.similar_recommendations) {
+        recommendations.push(...response.data.similar_recommendations)
+      }
+      return recommendations
+    } catch (error: any) {
+      // If detailed endpoint returns 404, fallback to regular endpoint
+      if (error.response?.status === 404) {
+        return this.getRecommendationsForTicker(ticker, exchange)
+      }
+      throw error
+    }
   }
 
   async getStockNews(ticker: string, exchange?: string, limit?: number): Promise<StockNewsResponse> {
